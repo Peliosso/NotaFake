@@ -53,7 +53,6 @@ function editMessage($chat_id, $message_id, $text, $reply_markup = null) {
 function calcularFrete($cep_destino, $peso = 1) {
     global $cep_origem;
 
-    // API pública dos Correios (PAC)
     $url = "https://www2.correios.com.br/sistemas/precosPrazos/PrecoPrazo.asmx/CalcPrecoPrazo?"
          . http_build_query([
             "nCdEmpresa" => "",
@@ -74,21 +73,36 @@ function calcularFrete($cep_destino, $peso = 1) {
 
     $response = @file_get_contents($url);
     if ($response === false) {
-        return 30.00; // fallback
+        return rand(30, 50); // fallback aleatório
     }
 
-    // Extrai o valor do XML retornado
     if (preg_match('/<Valor>(.*?)<\/Valor>/', $response, $matches)) {
         $valor = str_replace(",", ".", $matches[1]);
-        return (float)$valor;
+        return (float)$valor > 0 ? (float)$valor : rand(30, 50);
     }
 
-    return 30.00; // fallback
+    return rand(30, 50);
 }
 
 // INICIO DO BOT
 if ($message == "/start") {
-    sendMessage($chat_id, "🎭 *Olá, seja Bem-vindo ao Joker NF!*\n\nDigite */comprar* para iniciar o formulário e calcular o frete automaticamente.");
+    sendMessage($chat_id, "🎭 *Bem-vindo ao Joker NF!*\n\nDigite */comprar* para iniciar o formulário e calcular o frete automaticamente.\n\nPara mais informações, use */info*.");
+    exit;
+}
+
+// NOVO COMANDO /info
+if ($message == "/info") {
+    $info = "🔒 *DETALHES TÉCNICOS DAS NOTAS:*\n\n" .
+        "✅ Fita preta real (original)\n" .
+        "✅ Marca d’água legítima\n" .
+        "✅ Holográfico\n" .
+        "✅ Papel texturizado de alta gramatura\n" .
+        "✅ Tamanho exato das cédulas verdadeiras\n" .
+        "✅ Reage à luz UV (negativo e positivo)\n" .
+        "✅ Fibras UV embutidas na cédula\n" .
+        "✅ Passa em teste com caneta detectora\n\n" .
+        "🫡 Referência: @Jokermetodosfree";
+    sendMessage($chat_id, $info);
     exit;
 }
 
@@ -152,31 +166,43 @@ if (isset($usuarios[$chat_id])) {
         case "bairro":
             $usuarios[$chat_id]["bairro"] = $message;
             $usuarios[$chat_id]["etapa"] = "cedulas";
-            sendMessage($chat_id, "💵 Informe o valor das *CÉDULAS*:");
-            break;
 
-        case "cedulas":
-            $usuarios[$chat_id]["cedulas"] = $message;
-            $usuarios[$chat_id]["etapa"] = "quantidade";
-
-            // Botões para selecionar a quantidade
+            // Botões inline para escolha das cédulas
             $keyboard = [
                 "inline_keyboard" => [
-                    [["text" => "💵 1K — R$170", "callback_data" => "qtd_1k"]],
-                    [["text" => "💵 2K — R$310", "callback_data" => "qtd_2k"]],
-                    [["text" => "💵 3K — R$450", "callback_data" => "qtd_3k"]],
-                    [["text" => "💵 4K — R$580", "callback_data" => "qtd_4k"]],
-                    [["text" => "💵 5K — R$740", "callback_data" => "qtd_5k"]],
-                    [["text" => "💵 10K — R$1.320", "callback_data" => "qtd_10k"]],
-                    [["text" => "💼 25K — R$2.270", "callback_data" => "qtd_25k"]],
-                    [["text" => "💼 50K+ — A combinar", "callback_data" => "qtd_50k"]]
+                    [["text" => "💵 100 🐟", "callback_data" => "cedula_100"]],
+                    [["text" => "💵 50 🐯", "callback_data" => "cedula_50"]],
+                    [["text" => "💵 20 🐒", "callback_data" => "cedula_20"]],
+                    [["text" => "💵 200 🐺", "callback_data" => "cedula_200"]]
                 ]
             ];
-            sendMessage($chat_id, "🔢 Escolha a *quantidade* desejada:", $keyboard);
+            sendMessage($chat_id, "💸 Escolha o valor das *CÉDULAS*:", $keyboard);
             break;
     }
 
     file_put_contents($usuariosFile, json_encode($usuarios));
+}
+
+// TRATAMENTO DA ESCOLHA DAS CÉDULAS
+if (strpos($callback_query, "cedula_") === 0) {
+    $usuarios[$chat_id]["cedulas"] = strtoupper(str_replace("cedula_", "", $callback_query));
+    $usuarios[$chat_id]["etapa"] = "quantidade";
+    file_put_contents($usuariosFile, json_encode($usuarios));
+
+    // Botões para selecionar a quantidade
+    $keyboard = [
+        "inline_keyboard" => [
+            [["text" => "💵 1K — R$170", "callback_data" => "qtd_1k"]],
+            [["text" => "💵 2K — R$310", "callback_data" => "qtd_2k"]],
+            [["text" => "💵 3K — R$450", "callback_data" => "qtd_3k"]],
+            [["text" => "💵 4K — R$580", "callback_data" => "qtd_4k"]],
+            [["text" => "💵 5K — R$740", "callback_data" => "qtd_5k"]],
+            [["text" => "💵 10K — R$1.320", "callback_data" => "qtd_10k"]],
+            [["text" => "💼 25K — R$2.270", "callback_data" => "qtd_25k"]],
+            [["text" => "💼 50K+ — A combinar", "callback_data" => "qtd_50k"]]
+        ]
+    ];
+    sendMessage($chat_id, "🔢 Escolha a *quantidade* desejada:", $keyboard);
 }
 
 // TRATAMENTO DA ESCOLHA DA QUANTIDADE
@@ -184,7 +210,6 @@ if (strpos($callback_query, "qtd_") === 0) {
     $message_id = $update["callback_query"]["message"]["message_id"];
     $quantidade = str_replace("qtd_", "", $callback_query);
 
-    // Tabela de preços
     $precos = [
         "1k" => 170,
         "2k" => 310,
@@ -193,7 +218,7 @@ if (strpos($callback_query, "qtd_") === 0) {
         "5k" => 740,
         "10k" => 1320,
         "25k" => 2270,
-        "50k" => 0 // A combinar
+        "50k" => 0
     ];
 
     $usuarios[$chat_id]["quantidade"] = strtoupper($quantidade);
