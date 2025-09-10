@@ -58,14 +58,8 @@ if($callback_query=="como_usar"){
            "2️⃣ Preencha corretamente todas as informações.\n".
            "3️⃣ Após preencher, será exibida a simulação de frete e o valor total.\n".
            "4️⃣ Realize o pagamento via PIX e clique em 'Já Paguei'.\n".
-           "5️⃣ Encaminhe a mensagem final para @RibeiroDo171.\n\n💡 Clique nos botões abaixo para mais detalhes:";
-    $keyboard=[
-        "inline_keyboard"=>[
-            [["text"=>"⬅ Voltar","callback_data"=>"voltar_start"]],
-            [["text"=>"💰 Preços","callback_data"=>"precos"]],
-            [["text"=>"🔒 Informações das Notas","callback_data"=>"info_notas"]]
-        ]
-    ];
+           "5️⃣ Encaminhe a mensagem final para @RibeiroDo171.";
+    $keyboard=[["inline_keyboard"=>[[["text"=>"⬅ Voltar","callback_data"=>"voltar_start"]]]]];
     editMessage($chat_id,$message_id,$texto,$keyboard);
     exit;
 }
@@ -78,39 +72,6 @@ if($callback_query=="voltar_start"){
         ]
     ];
     editMessage($chat_id,$message_id,"🎭 *Olá, seja Bem-vindo ao Joker NF!*\nClique no botão abaixo para aprender a me usar.",$keyboard);
-    exit;
-}
-
-// PREÇOS
-if($callback_query=="precos"){
-    $texto="💰 *TABELA ATUALIZADA — Setembro 2025*\n\n".
-           "• 💵 1K — R\$170\n".
-           "• 💵 2K — R\$310\n".
-           "• 💵 3K — R\$450\n".
-           "• 💵 4K — R\$580\n".
-           "• 💵 5K — R\$740\n".
-           "• 💵 10K — R\$1.320\n".
-           "• 💼 25K — R\$2.270\n".
-           "• 💼 50K+ — A combinar diretamente\n\n".
-           "📦 *Cédulas disponíveis:*\n100 🐟 | 50 🐯 | 20 🐒 | 200 🐺";
-    $keyboard=[["inline_keyboard"=>[[["text"=>"⬅ Voltar","callback_data"=>"como_usar"]]]]];
-    editMessage($chat_id,$message_id,$texto,$keyboard);
-    exit;
-}
-
-// INFORMAÇÕES DAS NOTAS
-if($callback_query=="info_notas"){
-    $texto="🔒 *DETALHES TÉCNICOS DAS NOTAS:*\n\n".
-           "✅ Fita preta real (original)\n".
-           "✅ Marca d’água legítima\n".
-           "✅ Holográfico\n".
-           "✅ Papel texturizado de alta gramatura\n".
-           "✅ Tamanho exato das cédulas verdadeiras\n".
-           "✅ Reage à luz UV (negativo e positivo)\n".
-           "✅ Fibras UV embutidas na cédula\n".
-           "✅ Passa em teste com caneta detectora";
-    $keyboard=[["inline_keyboard"=>[[["text"=>"⬅ Voltar","callback_data"=>"como_usar"]]]]];
-    editMessage($chat_id,$message_id,$texto,$keyboard);
     exit;
 }
 
@@ -173,51 +134,64 @@ if(isset($usuarios[$chat_id])){
         case "cedulas":
             $usuarios[$chat_id]["cedulas"]=$message;
             $usuarios[$chat_id]["etapa"]="quantidade";
-            sendMessage($chat_id,"🔢 Informe a *QUANTIDADE* (digite exatamente 1000, 2000, 3000, 4000, 5000, 10000, 25000 ou 50000):");
-            break;
 
-        case "quantidade":
-            $usuarios[$chat_id]["quantidade"] = $message;
-            $quantidade = $message;
-            $frete = 42;
-
-            if(!isset($precos[$quantidade])){
-                sendMessage($chat_id,"❌ Quantidade inválida! Digite exatamente 1000, 2000, 3000, 4000, 5000, 10000, 25000 ou 50000:");
-                exit;
+            // Cria botões com quantidades
+            $keyboard = ["inline_keyboard"=>[]];
+            $linha = [];
+            foreach(array_keys($precos) as $q){
+                $linha[]=["text"=>$q,"callback_data"=>"quant_".$q];
+                if(count($linha)==3){
+                    $keyboard["inline_keyboard"][]=$linha;
+                    $linha=[];
+                }
             }
+            if(count($linha)>0) $keyboard["inline_keyboard"][]=$linha;
 
-            $total_texto = is_numeric($precos[$quantidade]) ? "R$".($precos[$quantidade]+$frete)." (incluindo frete R$$frete)" : "A combinar + frete R$$frete";
-
-            // Envia a mensagem "Calculando frete..." e pega o message_id
-            $calc = sendMessage($chat_id,"⏳ Calculando frete...");
-            $calc_id = $calc['result']['message_id'] ?? null;
-            sleep(2); // simula cálculo
-
-            $dados = $usuarios[$chat_id];
-            $resumo = "📝 *Formulário completo*\n\n".
-                      "👤 Nome: {$dados['nome']}\n".
-                      "🏠 Rua: {$dados['rua']}, Nº {$dados['numero']}\n".
-                      "📮 CEP: {$dados['cep']}\n".
-                      "🌆 Cidade: {$dados['cidade']} - {$dados['estado']}\n".
-                      "📍 Bairro: {$dados['bairro']}\n".
-                      "💵 Cédulas: {$dados['cedulas']}\n".
-                      "🔢 Quantidade: {$dados['quantidade']}\n".
-                      "🚚 Frete: R$$frete\n".
-                      "💰 Total: $total_texto\n\n".
-                      "💸 *Chave PIX:* $chave_pix";
-
-            $keyboard=[
-                "inline_keyboard"=>[
-                    [["text"=>"✅ Já Paguei","callback_data"=>"ja_paguei"]],
-                    [["text"=>"❌ Não Paguei","callback_data"=>"nao_paguei"]]
-                ]
-            ];
-
-            editMessage($chat_id,$calc_id,$resumo,$keyboard);
-            unset($usuarios[$chat_id]);
+            sendMessage($chat_id,"🔢 Escolha a *QUANTIDADE* desejada clicando em um botão:", $keyboard);
             break;
     }
     file_put_contents($usuariosFile,json_encode($usuarios));
+    exit;
+}
+
+// Captura seleção de quantidade
+if(str_starts_with($callback_query,"quant_")){
+    $quantidade = str_replace("quant_","",$callback_query);
+    if(!isset($usuarios[$chat_id])) exit;
+    $usuarios[$chat_id]["quantidade"]=$quantidade;
+    file_put_contents($usuariosFile,json_encode($usuarios));
+
+    $frete = 42;
+    $total_texto = is_numeric($precos[$quantidade]) ? "R$".($precos[$quantidade]+$frete)." (incluindo frete R$$frete)" : "A combinar + frete R$$frete";
+
+    // Mensagem "Calculando frete..."
+    $calc = sendMessage($chat_id,"⏳ Calculando frete...");
+    $calc_id = $calc['result']['message_id'] ?? null;
+    sleep(2);
+
+    $dados = $usuarios[$chat_id];
+    $resumo = "📝 *Formulário completo*\n\n".
+              "👤 Nome: {$dados['nome']}\n".
+              "🏠 Rua: {$dados['rua']}, Nº {$dados['numero']}\n".
+              "📮 CEP: {$dados['cep']}\n".
+              "🌆 Cidade: {$dados['cidade']} - {$dados['estado']}\n".
+              "📍 Bairro: {$dados['bairro']}\n".
+              "💵 Cédulas: {$dados['cedulas']}\n".
+              "🔢 Quantidade: {$dados['quantidade']}\n".
+              "🚚 Frete: R$$frete\n".
+              "💰 Total: $total_texto\n\n".
+              "💸 *Chave PIX:* $chave_pix";
+
+    $keyboard=[
+        "inline_keyboard"=>[
+            [["text"=>"✅ Já Paguei","callback_data"=>"ja_paguei"]],
+            [["text"=>"❌ Não Paguei","callback_data"=>"nao_paguei"]]
+        ]
+    ];
+
+    editMessage($chat_id,$calc_id,$resumo,$keyboard);
+    unset($usuarios[$chat_id]);
+    exit;
 }
 
 // NÃO PAGUEI
@@ -228,9 +202,7 @@ if($callback_query=="nao_paguei"){
 
 // JÁ PAGUEI
 if($callback_query=="ja_paguei"){
-    $msg_text = $update["callback_query"]["message"]["text"];
-    $texto = preg_replace("/💸 \*Chave PIX:.*\*/","✅ Pagamento confirmado!\n📨 Encaminhe este formulário para @RibeiroDo171.",$msg_text);
-    editMessage($chat_id,$message_id,$texto);
+    sendMessage($chat_id,"✅ Pagamento confirmado!\n📨 Encaminhe o formulário acima para @RibeiroDo171 e envie o comprovante de pagamento.");
     exit;
 }
 ?>
