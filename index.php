@@ -2,16 +2,14 @@
 // CONFIGURAÇÕES DO BOT
 $token = "8362847658:AAHoF5LFmYDZdWPm9Umde9M5dqluhnpUl-g";
 $apiURL = "https://api.telegram.org/bot$token/";
-
-// CEP de origem — Belo Horizonte, MG
-$cep_origem = "30140071";
+$cep_origem = "30140071"; // Belo Horizonte, MG
 
 // PEGAR MENSAGENS
 $update = json_decode(file_get_contents("php://input"), true);
-
 $chat_id = $update["message"]["chat"]["id"] ?? $update["callback_query"]["message"]["chat"]["id"];
 $message = $update["message"]["text"] ?? null;
 $callback_query = $update["callback_query"]["data"] ?? null;
+$message_id = $update["callback_query"]["message"]["message_id"] ?? null;
 
 // ARQUIVO PARA SALVAR OS DADOS
 $usuariosFile = "usuarios.json";
@@ -31,7 +29,8 @@ function sendMessage($chat_id, $text, $reply_markup = null) {
     if ($reply_markup) {
         $data["reply_markup"] = json_encode($reply_markup);
     }
-    file_get_contents($apiURL . "sendMessage?" . http_build_query($data));
+    $response = file_get_contents($apiURL . "sendMessage?" . http_build_query($data));
+    return json_decode($response, true)["result"]["message_id"] ?? null;
 }
 
 // FUNÇÃO PARA EDITAR MENSAGENS
@@ -49,60 +48,55 @@ function editMessage($chat_id, $message_id, $text, $reply_markup = null) {
     file_get_contents($apiURL . "editMessageText?" . http_build_query($data));
 }
 
-// FUNÇÃO PARA CALCULAR FRETE PELOS CORREIOS
+// FUNÇÃO PARA CALCULAR FRETE
 function calcularFrete($cep_destino, $peso = 1) {
     global $cep_origem;
-
-    $url = "https://www2.correios.com.br/sistemas/precosPrazos/PrecoPrazo.asmx/CalcPrecoPrazo?"
-         . http_build_query([
-            "nCdEmpresa" => "",
-            "sDsSenha" => "",
-            "nCdServico" => "04510", // PAC
-            "sCepOrigem" => $cep_origem,
-            "sCepDestino" => $cep_destino,
-            "nVlPeso" => $peso,
-            "nCdFormato" => 1,
-            "nVlComprimento" => 20,
-            "nVlAltura" => 5,
-            "nVlLargura" => 15,
-            "nVlDiametro" => 0,
-            "sCdMaoPropria" => "N",
-            "nVlValorDeclarado" => 0,
-            "sCdAvisoRecebimento" => "N"
-         ]);
+    $url = "https://www2.correios.com.br/sistemas/precosPrazos/PrecoPrazo.asmx/CalcPrecoPrazo?" . http_build_query([
+        "nCdEmpresa" => "",
+        "sDsSenha" => "",
+        "nCdServico" => "04510",
+        "sCepOrigem" => $cep_origem,
+        "sCepDestino" => $cep_destino,
+        "nVlPeso" => $peso,
+        "nCdFormato" => 1,
+        "nVlComprimento" => 20,
+        "nVlAltura" => 5,
+        "nVlLargura" => 15,
+        "nVlDiametro" => 0,
+        "sCdMaoPropria" => "N",
+        "nVlValorDeclarado" => 0,
+        "sCdAvisoRecebimento" => "N"
+    ]);
 
     $response = @file_get_contents($url);
-    if ($response === false) {
-        return rand(30, 50); // fallback aleatório
-    }
-
+    if ($response === false) return rand(30, 50);
     if (preg_match('/<Valor>(.*?)<\/Valor>/', $response, $matches)) {
         $valor = str_replace(",", ".", $matches[1]);
         return (float)$valor > 0 ? (float)$valor : rand(30, 50);
     }
-
     return rand(30, 50);
 }
 
-// INICIO DO BOT
+// COMANDO /start
 if ($message == "/start") {
-    sendMessage($chat_id, "🎭 *Bem-vindo ao Joker NF!*\n\nDigite */comprar* para iniciar o formulário e calcular o frete automaticamente.\n\nPara mais informações, use */info*.");
+    sendMessage($chat_id, "🎭 *Bem-vindo ao Joker NF!*\n\nDigite */comprar* para iniciar o formulário.\nPara mais detalhes sobre as notas, use */info*.");
     exit;
 }
 
-// NOVO COMANDO /info
+// COMANDO /info
 if ($message == "/info") {
-    $info = "🔒 *DETALHES TÉCNICOS DAS NOTAS:*\n\n" .
-        "✅ Fita preta real (original)\n" .
-        "✅ Marca d’água legítima\n" .
-        "✅ Holográfico\n" .
-        "✅ Papel texturizado de alta gramatura\n" .
-        "✅ Tamanho exato das cédulas verdadeiras\n" .
-        "✅ Reage à luz UV (negativo e positivo)\n" .
-        "✅ Fibras UV embutidas na cédula\n" .
-        "✅ Passa em teste com caneta detectora\n\n" .
-        "🫡 Referência: @Jokermetodosfree";
-    sendMessage($chat_id, $info);
+    sendMessage($chat_id,
+        "🔒 *DETALHES TÉCNICOS DAS NOTAS:*\n\n".
+        "✅ Fita preta real (original)\n".
+        "✅ Marca d’água legítima\n".
+        "✅ Holográfico\n".
+        "✅ Papel texturizado de alta gramatura\n".
+        "✅ Tamanho exato das cédulas verdadeiras\n".
+        "✅ Reage à luz UV (negativo e positivo)\n".
+        "✅ Fibras UV embutidas na cédula\n".
+        "✅ Passa em teste com caneta detectora\n\n".
+        "🫡 Referência: @Jokermetodosfree"
+    );
     exit;
 }
 
@@ -115,7 +109,7 @@ if ($message == "/comprar") {
 }
 
 // FORMULÁRIO PASSO A PASSO
-if (isset($usuarios[$chat_id])) {
+if (isset($usuarios[$chat_id]) && $message && !$callback_query) {
     $etapa = $usuarios[$chat_id]["etapa"];
 
     switch ($etapa) {
@@ -167,7 +161,7 @@ if (isset($usuarios[$chat_id])) {
             $usuarios[$chat_id]["bairro"] = $message;
             $usuarios[$chat_id]["etapa"] = "cedulas";
 
-            // Botões inline para escolha das cédulas
+            // Envia botões de cédulas
             $keyboard = [
                 "inline_keyboard" => [
                     [["text" => "💵 100 🐟", "callback_data" => "cedula_100"]],
@@ -183,13 +177,12 @@ if (isset($usuarios[$chat_id])) {
     file_put_contents($usuariosFile, json_encode($usuarios));
 }
 
-// TRATAMENTO DA ESCOLHA DAS CÉDULAS
+// TRATAMENTO DA ESCOLHA DAS CÉDULAS → EDITA A MESMA MENSAGEM
 if (strpos($callback_query, "cedula_") === 0) {
     $usuarios[$chat_id]["cedulas"] = strtoupper(str_replace("cedula_", "", $callback_query));
     $usuarios[$chat_id]["etapa"] = "quantidade";
     file_put_contents($usuariosFile, json_encode($usuarios));
 
-    // Botões para selecionar a quantidade
     $keyboard = [
         "inline_keyboard" => [
             [["text" => "💵 1K — R$170", "callback_data" => "qtd_1k"]],
@@ -202,12 +195,11 @@ if (strpos($callback_query, "cedula_") === 0) {
             [["text" => "💼 50K+ — A combinar", "callback_data" => "qtd_50k"]]
         ]
     ];
-    sendMessage($chat_id, "🔢 Escolha a *quantidade* desejada:", $keyboard);
+    editMessage($chat_id, $message_id, "🔢 Escolha a *quantidade* desejada:", $keyboard);
 }
 
-// TRATAMENTO DA ESCOLHA DA QUANTIDADE
+// TRATAMENTO DA ESCOLHA DA QUANTIDADE → ANIMAÇÃO + RESUMO
 if (strpos($callback_query, "qtd_") === 0) {
-    $message_id = $update["callback_query"]["message"]["message_id"];
     $quantidade = str_replace("qtd_", "", $callback_query);
 
     $precos = [
@@ -224,9 +216,9 @@ if (strpos($callback_query, "qtd_") === 0) {
     $usuarios[$chat_id]["quantidade"] = strtoupper($quantidade);
     $preco = $precos[$quantidade] ?? 0;
 
-    // Calcula frete com base no CEP do usuário
     $cep_destino = $usuarios[$chat_id]["cep"];
     $frete = ($quantidade === "50k") ? 0 : calcularFrete($cep_destino);
+    $total = $preco + $frete;
 
     // Animação interativa
     editMessage($chat_id, $message_id, "🔄 Calculando *quantidade*...");
@@ -238,10 +230,7 @@ if (strpos($callback_query, "qtd_") === 0) {
     editMessage($chat_id, $message_id, "✅ Finalizando seu pedido...");
     sleep(1);
 
-    // Resumo final
     $dados = $usuarios[$chat_id];
-    $total = $preco + $frete;
-
     $resumo =
         "✅ *Formulário preenchido com sucesso!*\n\n" .
         "👤 Nome: {$dados['nome']}\n" .
@@ -258,10 +247,9 @@ if (strpos($callback_query, "qtd_") === 0) {
         "🔹 PIX: `1aebb1bd-10b7-435e-bd17-03adf4451088`\n\n" .
         "📤 *Após o pagamento, envie o comprovante para*: @RibeiroDo171";
 
-    sendMessage($chat_id, $resumo);
+    editMessage($chat_id, $message_id, $resumo);
 
     unset($usuarios[$chat_id]);
     file_put_contents($usuariosFile, json_encode($usuarios));
-    exit;
 }
 ?>
