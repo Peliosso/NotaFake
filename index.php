@@ -3,6 +3,9 @@
 $token = "8362847658:AAHoF5LFmYDZdWPm9Umde9M5dqluhnpUl-g";
 $apiURL = "https://api.telegram.org/bot$token/";
 
+// CEP de origem — Belo Horizonte, MG
+$cep_origem = "30140071";
+
 // PEGAR MENSAGENS
 $update = json_decode(file_get_contents("php://input"), true);
 
@@ -46,73 +49,51 @@ function editMessage($chat_id, $message_id, $text, $reply_markup = null) {
     file_get_contents($apiURL . "editMessageText?" . http_build_query($data));
 }
 
+// FUNÇÃO PARA CALCULAR FRETE PELOS CORREIOS
+function calcularFrete($cep_destino, $peso = 1) {
+    global $cep_origem;
+
+    // API pública dos Correios (PAC)
+    $url = "https://www2.correios.com.br/sistemas/precosPrazos/PrecoPrazo.asmx/CalcPrecoPrazo?"
+         . http_build_query([
+            "nCdEmpresa" => "",
+            "sDsSenha" => "",
+            "nCdServico" => "04510", // PAC
+            "sCepOrigem" => $cep_origem,
+            "sCepDestino" => $cep_destino,
+            "nVlPeso" => $peso,
+            "nCdFormato" => 1,
+            "nVlComprimento" => 20,
+            "nVlAltura" => 5,
+            "nVlLargura" => 15,
+            "nVlDiametro" => 0,
+            "sCdMaoPropria" => "N",
+            "nVlValorDeclarado" => 0,
+            "sCdAvisoRecebimento" => "N"
+         ]);
+
+    $response = @file_get_contents($url);
+    if ($response === false) {
+        return 30.00; // fallback
+    }
+
+    // Extrai o valor do XML retornado
+    if (preg_match('/<Valor>(.*?)<\/Valor>/', $response, $matches)) {
+        $valor = str_replace(",", ".", $matches[1]);
+        return (float)$valor;
+    }
+
+    return 30.00; // fallback
+}
+
 // INICIO DO BOT
 if ($message == "/start") {
-    $keyboard = [
-        "inline_keyboard" => [
-            [["text" => "📖 Como Usar", "callback_data" => "como_usar"]]
-        ]
-    ];
-    sendMessage($chat_id, "🎭 *Olá, seja Bem-vindo ao Joker NF!*\n\nClique no botão abaixo para aprender a me usar.", $keyboard);
-    exit;
-}
-
-// BOTÃO COMO USAR
-if ($callback_query == "como_usar") {
-    $message_id = $update["callback_query"]["message"]["message_id"];
-    $keyboard = [
-        "inline_keyboard" => [
-            [["text" => "⬅ Voltar", "callback_data" => "voltar_start"]]
-        ]
-    ];
-    editMessage($chat_id, $message_id,
-        "📌 *Como usar o bot:*\n\n".
-        "1️⃣ Use o comando /comprar\n".
-        "2️⃣ Faça o pagamento e preencha o formulário\n".
-        "3️⃣ Encaminhe o resumo final para @RibeiroDo171",
-        $keyboard
-    );
-    exit;
-}
-
-// VOLTAR AO INÍCIO
-if ($callback_query == "voltar_start") {
-    $message_id = $update["callback_query"]["message"]["message_id"];
-    $keyboard = [
-        "inline_keyboard" => [
-            [["text" => "📖 Como Usar", "callback_data" => "como_usar"]]
-        ]
-    ];
-    editMessage($chat_id, $message_id, "🎭 *Olá, seja Bem-vindo ao Joker NF!*\n\nClique no botão abaixo para aprender a me usar.", $keyboard);
+    sendMessage($chat_id, "🎭 *Olá, seja Bem-vindo ao Joker NF!*\n\nDigite */comprar* para iniciar o formulário e calcular o frete automaticamente.");
     exit;
 }
 
 // COMANDO /comprar
 if ($message == "/comprar") {
-    $keyboard = [
-        "inline_keyboard" => [
-            [["text" => "✅ Já Paguei", "callback_data" => "ja_paguei"]],
-            [["text" => "❌ Não Paguei", "callback_data" => "nao_paguei"]]
-        ]
-    ];
-    sendMessage($chat_id,
-        "💸 *Dados para pagamento via PIX:*\n\n".
-        "🔹 *Chave PIX:* `701.928.226-16`\n".
-        "⚠ Após o pagamento, clique em *Já Paguei*.",
-        $keyboard
-    );
-    exit;
-}
-
-// BOTÃO NÃO PAGUEI
-if ($callback_query == "nao_paguei") {
-    $message_id = $update["callback_query"]["message"]["message_id"];
-    editMessage($chat_id, $message_id, "⚠️ Para prosseguir, é necessário realizar o pagamento via PIX.");
-    exit;
-}
-
-// BOTÃO JÁ PAGUEI — INICIA FORMULÁRIO
-if ($callback_query == "ja_paguei") {
     $usuarios[$chat_id] = ["etapa" => "nome"];
     file_put_contents($usuariosFile, json_encode($usuarios));
     sendMessage($chat_id, "📝 Vamos começar o formulário.\n\nDigite seu *NOME COMPLETO*:");
@@ -218,8 +199,9 @@ if (strpos($callback_query, "qtd_") === 0) {
     $usuarios[$chat_id]["quantidade"] = strtoupper($quantidade);
     $preco = $precos[$quantidade] ?? 0;
 
-    // Frete fixo, pode mudar se quiser
-    $frete = ($quantidade === "50k") ? 0 : 30;
+    // Calcula frete com base no CEP do usuário
+    $cep_destino = $usuarios[$chat_id]["cep"];
+    $frete = ($quantidade === "50k") ? 0 : calcularFrete($cep_destino);
 
     // Animação interativa
     editMessage($chat_id, $message_id, "🔄 Calculando *quantidade*...");
@@ -247,7 +229,9 @@ if (strpos($callback_query, "qtd_") === 0) {
         "💰 Valor: R$" . number_format($preco, 2, ',', '.') . "\n" .
         "🚛 Frete: R$" . number_format($frete, 2, ',', '.') . "\n" .
         "💳 *Total a Pagar*: R$" . number_format($total, 2, ',', '.') . "\n\n" .
-        "📤 Encaminhe esta mensagem para: @RibeiroDo171 junto com o comprovante de pagamento.";
+        "📌 *Forma de pagamento:*\n".
+        "🔹 PIX: `1aebb1bd-10b7-435e-bd17-03adf4451088`\n\n" .
+        "📤 *Após o pagamento, envie o comprovante para*: @RibeiroDo171";
 
     sendMessage($chat_id, $resumo);
 
