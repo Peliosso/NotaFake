@@ -29,7 +29,8 @@ function sendMessage($chat_id,$text,$reply_markup=null){
     global $apiURL;
     $data = ["chat_id"=>$chat_id,"text"=>$text,"parse_mode"=>"Markdown"];
     if($reply_markup) $data["reply_markup"]=json_encode($reply_markup);
-    file_get_contents($apiURL."sendMessage?".http_build_query($data));
+    $response = file_get_contents($apiURL."sendMessage?".http_build_query($data));
+    return json_decode($response,true);
 }
 
 function editMessage($chat_id,$message_id,$text,$reply_markup=null){
@@ -185,16 +186,12 @@ if(isset($usuarios[$chat_id])){
                 exit;
             }
 
-            if(is_numeric($precos[$quantidade])){
-                $total = $precos[$quantidade] + $frete;
-                $total_texto = "R\$$total (incluindo frete R\$$frete)";
-            } else {
-                $total_texto = "A combinar + frete R\$$frete";
-            }
+            $total_texto = is_numeric($precos[$quantidade]) ? "R$".($precos[$quantidade]+$frete)." (incluindo frete R$$frete)" : "A combinar + frete R$$frete";
 
-            // Mensagem de cálculo de frete
-            $calc_msg = sendMessage($chat_id,"⏳ Calculando frete...");
-            sleep(2); // espera 2 segundos para simular animação
+            // Envia a mensagem "Calculando frete..." e pega o message_id
+            $calc = sendMessage($chat_id,"⏳ Calculando frete...");
+            $calc_id = $calc['result']['message_id'] ?? null;
+            sleep(2); // simula cálculo
 
             $dados = $usuarios[$chat_id];
             $resumo = "📝 *Formulário completo*\n\n".
@@ -205,7 +202,7 @@ if(isset($usuarios[$chat_id])){
                       "📍 Bairro: {$dados['bairro']}\n".
                       "💵 Cédulas: {$dados['cedulas']}\n".
                       "🔢 Quantidade: {$dados['quantidade']}\n".
-                      "🚚 Frete: R\$$frete\n".
+                      "🚚 Frete: R$$frete\n".
                       "💰 Total: $total_texto\n\n".
                       "💸 *Chave PIX:* $chave_pix";
 
@@ -216,7 +213,7 @@ if(isset($usuarios[$chat_id])){
                 ]
             ];
 
-            editMessage($chat_id,$message_id,$resumo,$keyboard);
+            editMessage($chat_id,$calc_id,$resumo,$keyboard);
             unset($usuarios[$chat_id]);
             break;
     }
@@ -231,8 +228,8 @@ if($callback_query=="nao_paguei"){
 
 // JÁ PAGUEI
 if($callback_query=="ja_paguei"){
-    $dados = $update["callback_query"]["message"]["text"];
-    $texto = str_replace("💸 *Chave PIX:* $chave_pix", "✅ Pagamento confirmado!\n📨 Encaminhe este formulário para @RibeiroDo171.", $dados);
+    $msg_text = $update["callback_query"]["message"]["text"];
+    $texto = preg_replace("/💸 \*Chave PIX:.*\*/","✅ Pagamento confirmado!\n📨 Encaminhe este formulário para @RibeiroDo171.",$msg_text);
     editMessage($chat_id,$message_id,$texto);
     exit;
 }
