@@ -231,15 +231,9 @@ if($callback_query=="nao_paguei"){
 
 // JÁ PAGUEI
 if($callback_query=="ja_paguei"){
-    $dados = $usuarios[$chat_id] ?? [];
-    $resumo_sem_pix = "📝 *Formulário confirmado*\n\n".
-                      "👤 Nome: {$dados['nome']}\n".
-                      "🏠 Rua: {$dados['rua']}, Nº {$dados['numero']}\n".
-                      "📮 CEP: {$dados['cep']}\n".
-                      "🌆 Cidade: {$dados['cidade']} - {$dados['estado']}\n".
-                      "📍 Bairro: {$dados['bairro']}\n".
-                      "💵 Cédulas: {$dados['cedulas']}\n".
-                      "🔢 Quantidade: {$dados['quantidade']}\n\n".
-                      "✅ Pagamento confirmado!\n".
-                      "📨 Encaminhe este formulário para @RibeiroDo171.";
-    editMessage($chat_id,$message_id
+    $dados = $update["callback_query"]["message"]["text"];
+    $texto = str_replace("💸 *Chave PIX:* $chave_pix", "✅ Pagamento confirmado!\n📨 Encaminhe este formulário para @RibeiroDo171.", $dados);
+    editMessage($chat_id,$message_id,$texto);
+    exit;
+}
+?>
