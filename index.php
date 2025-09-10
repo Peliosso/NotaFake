@@ -23,6 +23,8 @@ $precos = [
     "50000" => "A combinar"
 ];
 
+$chave_pix = "1aebb1bd-10b7-435e-bd17-03adf4451088";
+
 function sendMessage($chat_id,$text,$reply_markup=null){
     global $apiURL;
     $data = ["chat_id"=>$chat_id,"text"=>$text,"parse_mode"=>"Markdown"];
@@ -50,7 +52,12 @@ if($message=="/start"){
 
 // COMO USAR
 if($callback_query=="como_usar"){
-    $texto="📌 *Como usar o bot:*\n\n1️⃣ Preencha o formulário primeiro\n2️⃣ Depois faça o pagamento via PIX\n3️⃣ Encaminhe o resumo final para @RibeiroDo171\n\n💡 Clique nos botões abaixo para mais detalhes:";
+    $texto="📌 *Como usar o bot:*\n\n".
+           "1️⃣ Use o comando /comprar para iniciar o formulário.\n".
+           "2️⃣ Preencha corretamente todas as informações.\n".
+           "3️⃣ Após preencher, será exibida a simulação de frete e o valor total.\n".
+           "4️⃣ Realize o pagamento via PIX e clique em 'Já Paguei'.\n".
+           "5️⃣ Encaminhe a mensagem final para @RibeiroDo171.\n\n💡 Clique nos botões abaixo para mais detalhes:";
     $keyboard=[
         "inline_keyboard"=>[
             [["text"=>"⬅ Voltar","callback_data"=>"voltar_start"]],
@@ -173,7 +180,6 @@ if(isset($usuarios[$chat_id])){
             $quantidade = $message;
             $frete = 42;
 
-            global $precos;
             if(!isset($precos[$quantidade])){
                 sendMessage($chat_id,"❌ Quantidade inválida! Digite exatamente 1000, 2000, 3000, 4000, 5000, 10000, 25000 ou 50000:");
                 exit;
@@ -186,6 +192,10 @@ if(isset($usuarios[$chat_id])){
                 $total_texto = "A combinar + frete R\$$frete";
             }
 
+            // Mensagem de cálculo de frete
+            $calc_msg = sendMessage($chat_id,"⏳ Calculando frete...");
+            sleep(2); // espera 2 segundos para simular animação
+
             $dados = $usuarios[$chat_id];
             $resumo = "📝 *Formulário completo*\n\n".
                       "👤 Nome: {$dados['nome']}\n".
@@ -197,7 +207,7 @@ if(isset($usuarios[$chat_id])){
                       "🔢 Quantidade: {$dados['quantidade']}\n".
                       "🚚 Frete: R\$$frete\n".
                       "💰 Total: $total_texto\n\n".
-                      "💸 *Chave PIX:* 701.928.226-16";
+                      "💸 *Chave PIX:* $chave_pix";
 
             $keyboard=[
                 "inline_keyboard"=>[
@@ -206,21 +216,30 @@ if(isset($usuarios[$chat_id])){
                 ]
             ];
 
-            sendMessage($chat_id,$resumo,$keyboard);
+            editMessage($chat_id,$message_id,$resumo,$keyboard);
             unset($usuarios[$chat_id]);
             break;
     }
     file_put_contents($usuariosFile,json_encode($usuarios));
 }
 
-// JÁ PAGUEI / NÃO PAGUEI
+// NÃO PAGUEI
 if($callback_query=="nao_paguei"){
     editMessage($chat_id,$message_id,"⚠️ Para prosseguir, é necessário realizar o pagamento via PIX.");
     exit;
 }
 
+// JÁ PAGUEI
 if($callback_query=="ja_paguei"){
-    editMessage($chat_id,$message_id,"✅ Pagamento confirmado! Agora encaminhe esta mensagem junto com o comprovante para @RibeiroDo171.");
-    exit;
-}
-?>
+    $dados = $usuarios[$chat_id] ?? [];
+    $resumo_sem_pix = "📝 *Formulário confirmado*\n\n".
+                      "👤 Nome: {$dados['nome']}\n".
+                      "🏠 Rua: {$dados['rua']}, Nº {$dados['numero']}\n".
+                      "📮 CEP: {$dados['cep']}\n".
+                      "🌆 Cidade: {$dados['cidade']} - {$dados['estado']}\n".
+                      "📍 Bairro: {$dados['bairro']}\n".
+                      "💵 Cédulas: {$dados['cedulas']}\n".
+                      "🔢 Quantidade: {$dados['quantidade']}\n\n".
+                      "✅ Pagamento confirmado!\n".
+                      "📨 Encaminhe este formulário para @RibeiroDo171.";
+    editMessage($chat_id,$message_id
