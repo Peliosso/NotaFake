@@ -1,6 +1,6 @@
 <?php
 // CONFIGURAÇÕES DO BOT
-$token = "SEU_TOKEN_AQUI";
+$token = "8362847658:AAHoF5LFmYDZdWPm9Umde9M5dqluhnpUl-g";
 $apiURL = "https://api.telegram.org/bot$token/";
 
 // PEGAR MENSAGENS
