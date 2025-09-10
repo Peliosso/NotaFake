@@ -118,14 +118,55 @@ if($message=="/comprar"){
 if(isset($usuarios[$chat_id])){
     $etapa=$usuarios[$chat_id]["etapa"];
     switch($etapa){
-        case "nome": $usuarios[$chat_id]["nome"]=$message; $usuarios[$chat_id]["etapa"]="rua"; sendMessage($chat_id,"🏠 Informe sua *RUA*:"); break;
-        case "rua": $usuarios[$chat_id]["rua"]=$message; $usuarios[$chat_id]["etapa"]="numero"; sendMessage($chat_id,"🔢 Informe o *NÚMERO* da residência:"); break;
-        case "numero": if(!is_numeric($message)){sendMessage($chat_id,"❌ Número inválido! Digite apenas números:"); exit;} $usuarios[$chat_id]["numero"]=$message; $usuarios[$chat_id]["etapa"]="cep"; sendMessage($chat_id,"📮 Informe seu *CEP* (apenas números):"); break;
-        case "cep": if(!is_numeric($message) || strlen($message)!=8){sendMessage($chat_id,"❌ CEP inválido! Digite um CEP válido:"); exit;} $usuarios[$chat_id]["cep"]=$message; $usuarios[$chat_id]["etapa"]="cidade"; sendMessage($chat_id,"🌆 Informe sua *CIDADE*:"); break;
-        case "cidade": $usuarios[$chat_id]["cidade"]=$message; $usuarios[$chat_id]["etapa"]="estado"; sendMessage($chat_id,"🏙 Informe seu *ESTADO*:"); break;
-        case "estado": $usuarios[$chat_id]["estado"]=$message; $usuarios[$chat_id]["etapa"]="bairro"; sendMessage($chat_id,"📍 Informe seu *BAIRRO*:"); break;
-        case "bairro": $usuarios[$chat_id]["bairro"]=$message; $usuarios[$chat_id]["etapa"]="cedulas"; sendMessage($chat_id,"💵 Informe o valor das *CÉDULAS*:"); break;
-        case "cedulas": $usuarios[$chat_id]["cedulas"]=$message; $usuarios[$chat_id]["etapa"]="quantidade"; sendMessage($chat_id,"🔢 Informe a *QUANTIDADE* (digite exatamente 1000, 2000, 3000, 4000, 5000, 10000, 25000 ou 50000):"); break;
+        case "nome":
+            $usuarios[$chat_id]["nome"]=$message;
+            $usuarios[$chat_id]["etapa"]="rua";
+            sendMessage($chat_id,"🏠 Informe sua *RUA*:");
+            break;
+
+        case "rua":
+            $usuarios[$chat_id]["rua"]=$message;
+            $usuarios[$chat_id]["etapa"]="numero";
+            sendMessage($chat_id,"🔢 Informe o *NÚMERO* da residência:");
+            break;
+
+        case "numero":
+            if(!is_numeric($message)){sendMessage($chat_id,"❌ Número inválido! Digite apenas números:"); exit;}
+            $usuarios[$chat_id]["numero"]=$message;
+            $usuarios[$chat_id]["etapa"]="cep";
+            sendMessage($chat_id,"📮 Informe seu *CEP* (apenas números):");
+            break;
+
+        case "cep":
+            if(!is_numeric($message) || strlen($message)!=8){sendMessage($chat_id,"❌ CEP inválido! Digite um CEP válido:"); exit;}
+            $usuarios[$chat_id]["cep"]=$message;
+            $usuarios[$chat_id]["etapa"]="cidade";
+            sendMessage($chat_id,"🌆 Informe sua *CIDADE*:");
+            break;
+
+        case "cidade":
+            $usuarios[$chat_id]["cidade"]=$message;
+            $usuarios[$chat_id]["etapa"]="estado";
+            sendMessage($chat_id,"🏙 Informe seu *ESTADO*:");
+            break;
+
+        case "estado":
+            $usuarios[$chat_id]["estado"]=$message;
+            $usuarios[$chat_id]["etapa"]="bairro";
+            sendMessage($chat_id,"📍 Informe seu *BAIRRO*:");
+            break;
+
+        case "bairro":
+            $usuarios[$chat_id]["bairro"]=$message;
+            $usuarios[$chat_id]["etapa"]="cedulas";
+            sendMessage($chat_id,"💵 Informe o valor das *CÉDULAS*:");
+            break;
+
+        case "cedulas":
+            $usuarios[$chat_id]["cedulas"]=$message;
+            $usuarios[$chat_id]["etapa"]="quantidade";
+            sendMessage($chat_id,"🔢 Informe a *QUANTIDADE* (digite exatamente 1000, 2000, 3000, 4000, 5000, 10000, 25000 ou 50000):");
+            break;
 
         case "quantidade":
             $usuarios[$chat_id]["quantidade"] = $message;
@@ -153,4 +194,33 @@ if(isset($usuarios[$chat_id])){
                       "🌆 Cidade: {$dados['cidade']} - {$dados['estado']}\n".
                       "📍 Bairro: {$dados['bairro']}\n".
                       "💵 Cédulas: {$dados['cedulas']}\n".
-                      "🔢 Quantidade
+                      "🔢 Quantidade: {$dados['quantidade']}\n".
+                      "🚚 Frete: R\$$frete\n".
+                      "💰 Total: $total_texto\n\n".
+                      "💸 *Chave PIX:* 701.928.226-16";
+
+            $keyboard=[
+                "inline_keyboard"=>[
+                    [["text"=>"✅ Já Paguei","callback_data"=>"ja_paguei"]],
+                    [["text"=>"❌ Não Paguei","callback_data"=>"nao_paguei"]]
+                ]
+            ];
+
+            sendMessage($chat_id,$resumo,$keyboard);
+            unset($usuarios[$chat_id]);
+            break;
+    }
+    file_put_contents($usuariosFile,json_encode($usuarios));
+}
+
+// JÁ PAGUEI / NÃO PAGUEI
+if($callback_query=="nao_paguei"){
+    editMessage($chat_id,$message_id,"⚠️ Para prosseguir, é necessário realizar o pagamento via PIX.");
+    exit;
+}
+
+if($callback_query=="ja_paguei"){
+    editMessage($chat_id,$message_id,"✅ Pagamento confirmado! Agora encaminhe esta mensagem junto com o comprovante para @RibeiroDo171.");
+    exit;
+}
+?>
