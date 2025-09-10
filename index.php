@@ -7,6 +7,7 @@ $chat_id = $update["message"]["chat"]["id"] ?? $update["callback_query"]["messag
 $message = $update["message"]["text"] ?? null;
 $callback_query = $update["callback_query"]["data"] ?? null;
 $message_id = $update["callback_query"]["message"]["message_id"] ?? null;
+$callback_id = $update["callback_query"]["id"] ?? null;
 
 $usuariosFile = "usuarios.json";
 if(!file_exists($usuariosFile)) file_put_contents($usuariosFile,"{}");
@@ -40,6 +41,14 @@ function editMessage($chat_id,$message_id,$text,$reply_markup=null){
     file_get_contents($apiURL."editMessageText?".http_build_query($data));
 }
 
+// Responder callback para o Telegram não travar o botão
+function answerCallback($callback_query_id, $text = null){
+    global $apiURL;
+    $data = ["callback_query_id" => $callback_query_id];
+    if($text) $data["text"] = $text;
+    file_get_contents($apiURL."answerCallbackQuery?".http_build_query($data));
+}
+
 // /start
 if($message=="/start"){
     $keyboard=[
@@ -61,6 +70,7 @@ if($callback_query=="como_usar"){
            "5️⃣ Encaminhe a mensagem final para @RibeiroDo171.";
     $keyboard=[["inline_keyboard"=>[[["text"=>"⬅ Voltar","callback_data"=>"voltar_start"]]]]];
     editMessage($chat_id,$message_id,$texto,$keyboard);
+    answerCallback($callback_id);
     exit;
 }
 
@@ -72,6 +82,7 @@ if($callback_query=="voltar_start"){
         ]
     ];
     editMessage($chat_id,$message_id,"🎭 *Olá, seja Bem-vindo ao Joker NF!*\nClique no botão abaixo para aprender a me usar.",$keyboard);
+    answerCallback($callback_id);
     exit;
 }
 
@@ -156,6 +167,7 @@ if(isset($usuarios[$chat_id])){
 
 // Captura seleção de quantidade
 if(str_starts_with($callback_query,"quant_")){
+    answerCallback($callback_id); // responde o callback
     $quantidade = str_replace("quant_","",$callback_query);
     if(!isset($usuarios[$chat_id])) exit;
     $usuarios[$chat_id]["quantidade"]=$quantidade;
@@ -196,12 +208,14 @@ if(str_starts_with($callback_query,"quant_")){
 
 // NÃO PAGUEI
 if($callback_query=="nao_paguei"){
+    answerCallback($callback_id);
     editMessage($chat_id,$message_id,"⚠️ Para prosseguir, é necessário realizar o pagamento via PIX.");
     exit;
 }
 
 // JÁ PAGUEI
 if($callback_query=="ja_paguei"){
+    answerCallback($callback_id);
     sendMessage($chat_id,"✅ Pagamento confirmado!\n📨 Encaminhe o formulário acima para @RibeiroDo171 e envie o comprovante de pagamento.");
     exit;
 }
