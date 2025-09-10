@@ -1,222 +1,258 @@
 <?php
+// CONFIGURAÇÕES DO BOT
 $token = "8362847658:AAHoF5LFmYDZdWPm9Umde9M5dqluhnpUl-g";
 $apiURL = "https://api.telegram.org/bot$token/";
 
+// PEGAR MENSAGENS
 $update = json_decode(file_get_contents("php://input"), true);
+
 $chat_id = $update["message"]["chat"]["id"] ?? $update["callback_query"]["message"]["chat"]["id"];
 $message = $update["message"]["text"] ?? null;
 $callback_query = $update["callback_query"]["data"] ?? null;
-$message_id = $update["callback_query"]["message"]["message_id"] ?? null;
-$callback_id = $update["callback_query"]["id"] ?? null;
 
+// ARQUIVO PARA SALVAR OS DADOS
 $usuariosFile = "usuarios.json";
-if(!file_exists($usuariosFile)) file_put_contents($usuariosFile,"{}");
-$usuarios = json_decode(file_get_contents($usuariosFile),true);
+if (!file_exists($usuariosFile)) {
+    file_put_contents($usuariosFile, "{}");
+}
+$usuarios = json_decode(file_get_contents($usuariosFile), true);
 
-$precos = [
-    "1000" => 170,
-    "2000" => 310,
-    "3000" => 450,
-    "4000" => 580,
-    "5000" => 740,
-    "10000" => 1320,
-    "25000" => 2270,
-    "50000" => "A combinar"
-];
-
-$chave_pix = "1aebb1bd-10b7-435e-bd17-03adf4451088";
-
-function sendMessage($chat_id,$text,$reply_markup=null){
+// FUNÇÃO PARA ENVIAR MENSAGENS
+function sendMessage($chat_id, $text, $reply_markup = null) {
     global $apiURL;
-    $data = ["chat_id"=>$chat_id,"text"=>$text,"parse_mode"=>"Markdown"];
-    if($reply_markup) $data["reply_markup"]=json_encode($reply_markup);
-    $response = file_get_contents($apiURL."sendMessage?".http_build_query($data));
-    return json_decode($response,true);
+    $data = [
+        "chat_id" => $chat_id,
+        "text" => $text,
+        "parse_mode" => "Markdown"
+    ];
+    if ($reply_markup) {
+        $data["reply_markup"] = json_encode($reply_markup);
+    }
+    file_get_contents($apiURL . "sendMessage?" . http_build_query($data));
 }
 
-function editMessage($chat_id,$message_id,$text,$reply_markup=null){
+// FUNÇÃO PARA EDITAR MENSAGENS
+function editMessage($chat_id, $message_id, $text, $reply_markup = null) {
     global $apiURL;
-    $data = ["chat_id"=>$chat_id,"message_id"=>$message_id,"text"=>$text,"parse_mode"=>"Markdown"];
-    if($reply_markup) $data["reply_markup"]=json_encode($reply_markup);
-    file_get_contents($apiURL."editMessageText?".http_build_query($data));
+    $data = [
+        "chat_id" => $chat_id,
+        "message_id" => $message_id,
+        "text" => $text,
+        "parse_mode" => "Markdown"
+    ];
+    if ($reply_markup) {
+        $data["reply_markup"] = json_encode($reply_markup);
+    }
+    file_get_contents($apiURL . "editMessageText?" . http_build_query($data));
 }
 
-// Responder callback para o Telegram não travar o botão
-function answerCallback($callback_query_id, $text = null){
-    global $apiURL;
-    $data = ["callback_query_id" => $callback_query_id];
-    if($text) $data["text"] = $text;
-    file_get_contents($apiURL."answerCallbackQuery?".http_build_query($data));
-}
-
-// /start
-if($message=="/start"){
-    $keyboard=[
-        "inline_keyboard"=>[
-            [["text"=>"📖 Como Usar","callback_data"=>"como_usar"]]
+// INICIO DO BOT
+if ($message == "/start") {
+    $keyboard = [
+        "inline_keyboard" => [
+            [["text" => "📖 Como Usar", "callback_data" => "como_usar"]]
         ]
     ];
-    sendMessage($chat_id,"🎭 *Olá, seja Bem-vindo ao Joker NF!*\nClique no botão abaixo para aprender a me usar.",$keyboard);
+    sendMessage($chat_id, "🎭 *Olá, seja Bem-vindo ao Joker NF!*\n\nClique no botão abaixo para aprender a me usar.", $keyboard);
     exit;
 }
 
-// COMO USAR
-if($callback_query=="como_usar"){
-    $texto="📌 *Como usar o bot:*\n\n".
-           "1️⃣ Use o comando /comprar para iniciar o formulário.\n".
-           "2️⃣ Preencha corretamente todas as informações.\n".
-           "3️⃣ Após preencher, será exibida a simulação de frete e o valor total.\n".
-           "4️⃣ Realize o pagamento via PIX e clique em 'Já Paguei'.\n".
-           "5️⃣ Encaminhe a mensagem final para @RibeiroDo171.";
-    $keyboard=[["inline_keyboard"=>[[["text"=>"⬅ Voltar","callback_data"=>"voltar_start"]]]]];
-    editMessage($chat_id,$message_id,$texto,$keyboard);
-    answerCallback($callback_id);
-    exit;
-}
-
-// VOLTAR
-if($callback_query=="voltar_start"){
-    $keyboard=[
-        "inline_keyboard"=>[
-            [["text"=>"📖 Como Usar","callback_data"=>"como_usar"]]
+// BOTÃO COMO USAR
+if ($callback_query == "como_usar") {
+    $message_id = $update["callback_query"]["message"]["message_id"];
+    $keyboard = [
+        "inline_keyboard" => [
+            [["text" => "⬅ Voltar", "callback_data" => "voltar_start"]]
         ]
     ];
-    editMessage($chat_id,$message_id,"🎭 *Olá, seja Bem-vindo ao Joker NF!*\nClique no botão abaixo para aprender a me usar.",$keyboard);
-    answerCallback($callback_id);
+    editMessage($chat_id, $message_id,
+        "📌 *Como usar o bot:*\n\n".
+        "1️⃣ Use o comando /comprar\n".
+        "2️⃣ Faça o pagamento e preencha o formulário\n".
+        "3️⃣ Encaminhe o resumo final para @RibeiroDo171",
+        $keyboard
+    );
     exit;
 }
 
-// /comprar
-if($message=="/comprar"){
-    $usuarios[$chat_id]=["etapa"=>"nome"];
-    file_put_contents($usuariosFile,json_encode($usuarios));
-    sendMessage($chat_id,"📝 Vamos começar o formulário.\nDigite seu *NOME COMPLETO*:");
+// VOLTAR AO INÍCIO
+if ($callback_query == "voltar_start") {
+    $message_id = $update["callback_query"]["message"]["message_id"];
+    $keyboard = [
+        "inline_keyboard" => [
+            [["text" => "📖 Como Usar", "callback_data" => "como_usar"]]
+        ]
+    ];
+    editMessage($chat_id, $message_id, "🎭 *Olá, seja Bem-vindo ao Joker NF!*\n\nClique no botão abaixo para aprender a me usar.", $keyboard);
     exit;
 }
 
-// FORMULÁRIO
-if(isset($usuarios[$chat_id])){
-    $etapa=$usuarios[$chat_id]["etapa"];
-    switch($etapa){
+// COMANDO /comprar
+if ($message == "/comprar") {
+    $keyboard = [
+        "inline_keyboard" => [
+            [["text" => "✅ Já Paguei", "callback_data" => "ja_paguei"]],
+            [["text" => "❌ Não Paguei", "callback_data" => "nao_paguei"]]
+        ]
+    ];
+    sendMessage($chat_id,
+        "💸 *Dados para pagamento via PIX:*\n\n".
+        "🔹 *Chave PIX:* `701.928.226-16`\n".
+        "⚠ Após o pagamento, clique em *Já Paguei*.",
+        $keyboard
+    );
+    exit;
+}
+
+// BOTÃO NÃO PAGUEI
+if ($callback_query == "nao_paguei") {
+    $message_id = $update["callback_query"]["message"]["message_id"];
+    editMessage($chat_id, $message_id, "⚠️ Para prosseguir, é necessário realizar o pagamento via PIX.");
+    exit;
+}
+
+// BOTÃO JÁ PAGUEI — INICIA FORMULÁRIO
+if ($callback_query == "ja_paguei") {
+    $usuarios[$chat_id] = ["etapa" => "nome"];
+    file_put_contents($usuariosFile, json_encode($usuarios));
+    sendMessage($chat_id, "📝 Vamos começar o formulário.\n\nDigite seu *NOME COMPLETO*:");
+    exit;
+}
+
+// FORMULÁRIO PASSO A PASSO
+if (isset($usuarios[$chat_id])) {
+    $etapa = $usuarios[$chat_id]["etapa"];
+
+    switch ($etapa) {
         case "nome":
-            $usuarios[$chat_id]["nome"]=$message;
-            $usuarios[$chat_id]["etapa"]="rua";
-            sendMessage($chat_id,"🏠 Informe sua *RUA*:");
+            $usuarios[$chat_id]["nome"] = $message;
+            $usuarios[$chat_id]["etapa"] = "rua";
+            sendMessage($chat_id, "🏠 Informe sua *RUA*:");
             break;
 
         case "rua":
-            $usuarios[$chat_id]["rua"]=$message;
-            $usuarios[$chat_id]["etapa"]="numero";
-            sendMessage($chat_id,"🔢 Informe o *NÚMERO* da residência:");
+            $usuarios[$chat_id]["rua"] = $message;
+            $usuarios[$chat_id]["etapa"] = "numero";
+            sendMessage($chat_id, "🔢 Informe o *NÚMERO* da residência:");
             break;
 
         case "numero":
-            if(!is_numeric($message)){sendMessage($chat_id,"❌ Número inválido! Digite apenas números:"); exit;}
-            $usuarios[$chat_id]["numero"]=$message;
-            $usuarios[$chat_id]["etapa"]="cep";
-            sendMessage($chat_id,"📮 Informe seu *CEP* (apenas números):");
+            if (!is_numeric($message)) {
+                sendMessage($chat_id, "❌ Número inválido! Digite apenas números:");
+                exit;
+            }
+            $usuarios[$chat_id]["numero"] = $message;
+            $usuarios[$chat_id]["etapa"] = "cep";
+            sendMessage($chat_id, "📮 Informe seu *CEP* (apenas números):");
             break;
 
         case "cep":
-            if(!is_numeric($message) || strlen($message)!=8){sendMessage($chat_id,"❌ CEP inválido! Digite um CEP válido:"); exit;}
-            $usuarios[$chat_id]["cep"]=$message;
-            $usuarios[$chat_id]["etapa"]="cidade";
-            sendMessage($chat_id,"🌆 Informe sua *CIDADE*:");
+            if (!is_numeric($message) || strlen($message) != 8) {
+                sendMessage($chat_id, "❌ CEP inválido! Digite um CEP válido:");
+                exit;
+            }
+            $usuarios[$chat_id]["cep"] = $message;
+            $usuarios[$chat_id]["etapa"] = "cidade";
+            sendMessage($chat_id, "🌆 Informe sua *CIDADE*:");
             break;
 
         case "cidade":
-            $usuarios[$chat_id]["cidade"]=$message;
-            $usuarios[$chat_id]["etapa"]="estado";
-            sendMessage($chat_id,"🏙 Informe seu *ESTADO*:");
+            $usuarios[$chat_id]["cidade"] = $message;
+            $usuarios[$chat_id]["etapa"] = "estado";
+            sendMessage($chat_id, "🏙 Informe seu *ESTADO*:");
             break;
 
         case "estado":
-            $usuarios[$chat_id]["estado"]=$message;
-            $usuarios[$chat_id]["etapa"]="bairro";
-            sendMessage($chat_id,"📍 Informe seu *BAIRRO*:");
+            $usuarios[$chat_id]["estado"] = $message;
+            $usuarios[$chat_id]["etapa"] = "bairro";
+            sendMessage($chat_id, "📍 Informe seu *BAIRRO*:");
             break;
 
         case "bairro":
-            $usuarios[$chat_id]["bairro"]=$message;
-            $usuarios[$chat_id]["etapa"]="cedulas";
-            sendMessage($chat_id,"💵 Informe o valor das *CÉDULAS*:");
+            $usuarios[$chat_id]["bairro"] = $message;
+            $usuarios[$chat_id]["etapa"] = "cedulas";
+            sendMessage($chat_id, "💵 Informe o valor das *CÉDULAS*:");
             break;
 
         case "cedulas":
-            $usuarios[$chat_id]["cedulas"]=$message;
-            $usuarios[$chat_id]["etapa"]="quantidade";
+            $usuarios[$chat_id]["cedulas"] = $message;
+            $usuarios[$chat_id]["etapa"] = "quantidade";
 
-            // Cria botões com quantidades
-            $keyboard = ["inline_keyboard"=>[]];
-            $linha = [];
-            foreach(array_keys($precos) as $q){
-                $linha[]=["text"=>$q,"callback_data"=>"quant_".$q];
-                if(count($linha)==3){
-                    $keyboard["inline_keyboard"][]=$linha;
-                    $linha=[];
-                }
-            }
-            if(count($linha)>0) $keyboard["inline_keyboard"][]=$linha;
-
-            sendMessage($chat_id,"🔢 Escolha a *QUANTIDADE* desejada clicando em um botão:", $keyboard);
+            // Botões para selecionar a quantidade
+            $keyboard = [
+                "inline_keyboard" => [
+                    [["text" => "💵 1K — R$170", "callback_data" => "qtd_1k"]],
+                    [["text" => "💵 2K — R$310", "callback_data" => "qtd_2k"]],
+                    [["text" => "💵 3K — R$450", "callback_data" => "qtd_3k"]],
+                    [["text" => "💵 4K — R$580", "callback_data" => "qtd_4k"]],
+                    [["text" => "💵 5K — R$740", "callback_data" => "qtd_5k"]],
+                    [["text" => "💵 10K — R$1.320", "callback_data" => "qtd_10k"]],
+                    [["text" => "💼 25K — R$2.270", "callback_data" => "qtd_25k"]],
+                    [["text" => "💼 50K+ — A combinar", "callback_data" => "qtd_50k"]]
+                ]
+            ];
+            sendMessage($chat_id, "🔢 Escolha a *quantidade* desejada:", $keyboard);
             break;
     }
-    file_put_contents($usuariosFile,json_encode($usuarios));
-    exit;
+
+    file_put_contents($usuariosFile, json_encode($usuarios));
 }
 
-// Captura seleção de quantidade
-if(str_starts_with($callback_query,"quant_")){
-    answerCallback($callback_id); // responde o callback
-    $quantidade = str_replace("quant_","",$callback_query);
-    if(!isset($usuarios[$chat_id])) exit;
-    $usuarios[$chat_id]["quantidade"]=$quantidade;
-    file_put_contents($usuariosFile,json_encode($usuarios));
+// TRATAMENTO DA ESCOLHA DA QUANTIDADE
+if (strpos($callback_query, "qtd_") === 0) {
+    $message_id = $update["callback_query"]["message"]["message_id"];
+    $quantidade = str_replace("qtd_", "", $callback_query);
 
-    $frete = 42;
-    $total_texto = is_numeric($precos[$quantidade]) ? "R$".($precos[$quantidade]+$frete)." (incluindo frete R$$frete)" : "A combinar + frete R$$frete";
-
-    // Mensagem "Calculando frete..."
-    $calc = sendMessage($chat_id,"⏳ Calculando frete...");
-    $calc_id = $calc['result']['message_id'] ?? null;
-    sleep(2);
-
-    $dados = $usuarios[$chat_id];
-    $resumo = "📝 *Formulário completo*\n\n".
-              "👤 Nome: {$dados['nome']}\n".
-              "🏠 Rua: {$dados['rua']}, Nº {$dados['numero']}\n".
-              "📮 CEP: {$dados['cep']}\n".
-              "🌆 Cidade: {$dados['cidade']} - {$dados['estado']}\n".
-              "📍 Bairro: {$dados['bairro']}\n".
-              "💵 Cédulas: {$dados['cedulas']}\n".
-              "🔢 Quantidade: {$dados['quantidade']}\n".
-              "🚚 Frete: R$$frete\n".
-              "💰 Total: $total_texto\n\n".
-              "💸 *Chave PIX:* $chave_pix";
-
-    $keyboard=[
-        "inline_keyboard"=>[
-            [["text"=>"✅ Já Paguei","callback_data"=>"ja_paguei"]],
-            [["text"=>"❌ Não Paguei","callback_data"=>"nao_paguei"]]
-        ]
+    // Tabela de preços
+    $precos = [
+        "1k" => 170,
+        "2k" => 310,
+        "3k" => 450,
+        "4k" => 580,
+        "5k" => 740,
+        "10k" => 1320,
+        "25k" => 2270,
+        "50k" => 0 // A combinar
     ];
 
-    editMessage($chat_id,$calc_id,$resumo,$keyboard);
+    $usuarios[$chat_id]["quantidade"] = strtoupper($quantidade);
+    $preco = $precos[$quantidade] ?? 0;
+
+    // Frete fixo, pode mudar se quiser
+    $frete = ($quantidade === "50k") ? 0 : 30;
+
+    // Animação interativa
+    editMessage($chat_id, $message_id, "🔄 Calculando *quantidade*...");
+    sleep(1);
+    editMessage($chat_id, $message_id, "📦 Preparando *envio*...");
+    sleep(1);
+    editMessage($chat_id, $message_id, "🚛 Calculando *frete*...");
+    sleep(1);
+    editMessage($chat_id, $message_id, "✅ Finalizando seu pedido...");
+    sleep(1);
+
+    // Resumo final
+    $dados = $usuarios[$chat_id];
+    $total = $preco + $frete;
+
+    $resumo =
+        "✅ *Formulário preenchido com sucesso!*\n\n" .
+        "👤 Nome: {$dados['nome']}\n" .
+        "🏠 Rua: {$dados['rua']}, Nº {$dados['numero']}\n" .
+        "📮 CEP: {$dados['cep']}\n" .
+        "🌆 Cidade: {$dados['cidade']} - {$dados['estado']}\n" .
+        "📍 Bairro: {$dados['bairro']}\n" .
+        "💵 Cédulas: {$dados['cedulas']}\n" .
+        "🔢 Quantidade: {$usuarios[$chat_id]['quantidade']}\n" .
+        "💰 Valor: R$" . number_format($preco, 2, ',', '.') . "\n" .
+        "🚛 Frete: R$" . number_format($frete, 2, ',', '.') . "\n" .
+        "💳 *Total a Pagar*: R$" . number_format($total, 2, ',', '.') . "\n\n" .
+        "📤 Encaminhe esta mensagem para: @RibeiroDo171 junto com o comprovante de pagamento.";
+
+    sendMessage($chat_id, $resumo);
+
     unset($usuarios[$chat_id]);
-    exit;
-}
-
-// NÃO PAGUEI
-if($callback_query=="nao_paguei"){
-    answerCallback($callback_id);
-    editMessage($chat_id,$message_id,"⚠️ Para prosseguir, é necessário realizar o pagamento via PIX.");
-    exit;
-}
-
-// JÁ PAGUEI
-if($callback_query=="ja_paguei"){
-    answerCallback($callback_id);
-    sendMessage($chat_id,"✅ Pagamento confirmado!\n📨 Encaminhe o formulário acima para @RibeiroDo171 e envie o comprovante de pagamento.");
+    file_put_contents($usuariosFile, json_encode($usuarios));
     exit;
 }
 ?>
