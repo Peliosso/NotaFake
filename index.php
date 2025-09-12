@@ -162,10 +162,10 @@ if (strpos($message, "/setstatus") === 0) {
     $codigo = $parts[1];
     $keyboard = [
         "inline_keyboard" => [
-            [["text"=>"📦 Preparando", "callback_data"=>"status_{$codigo}_preparando"]],
-            [["text"=>"🚛 Em Transporte", "callback_data"=>"status_{$codigo}_transporte"]],
-            [["text"=>"✅ Entregue", "callback_data"=>"status_{$codigo}_entregue"]],
-            [["text"=>"❌ Cancelado", "callback_data"=>"status_{$codigo}_cancelado"]]
+            [["text"=>"📦 • Preparando", "callback_data"=>"status_{$codigo}_preparando"]],
+            [["text"=>"🚛 • Em Transporte", "callback_data"=>"status_{$codigo}_transporte"]],
+            [["text"=>"✅ • Entregue", "callback_data"=>"status_{$codigo}_entregue"]],
+            [["text"=>"❌ • Cancelado", "callback_data"=>"status_{$codigo}_cancelado"]]
         ]
     ];
 
@@ -178,7 +178,7 @@ if (strpos($callback_query, "status_") === 0) {
     list(, $codigo, $novoStatus) = explode("_", $callback_query, 3);
     $statuses[$codigo] = $novoStatus;
     file_put_contents($statusFile, json_encode($statuses));
-    editMessage($chat_id, $message_id, "✅ Status do pedido `$codigo` definido como: *$novoStatus*");
+    editMessage($chat_id, $message_id, "✅ • Status do pedido `$codigo` definido como: *$novoStatus*");
     exit;
 }
 
@@ -198,14 +198,14 @@ if (strpos($message, "/status") === 0) {
 
     $status = $statuses[$codigo];
     $statusTexto = match($status) {
-        "preparando" => "📦 Preparando",
-        "transporte" => "🚛 Em Transporte",
-        "entregue" => "✅ Entregue",
-        "cancelado" => "❌ Cancelado",
-        default => "❓ Status desconhecido"
+        "preparando" => "📦 • Preparando",
+        "transporte" => "🚛 • Em Transporte",
+        "entregue" => "✅ • Entregue",
+        "cancelado" => "❌ • Cancelado",
+        default => "💰 • Validando Pagamento"
     };
 
-    sendMessage($chat_id, "📌 Status do seu pedido `$codigo`:\n$statusTexto");
+    sendMessage($chat_id, "📌 ~ Status do seu pedido `$codigo`:\n$statusTexto");
     exit;
 }
 
