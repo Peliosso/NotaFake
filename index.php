@@ -356,7 +356,7 @@ if (strpos($callback_query, "qtd_") === 0) {
         "💳 *Total a Pagar*: R$" . number_format($totalComDesconto, 2, ',', '.') . "\n\n" .
         "📌 *Forma de pagamento:*\n".
         "🔹 PIX: `1aebb1bd-10b7-435e-bd17-03adf4451088`\n\n" .
-        "📤 *Após o pagamento, envie o comprovante para*: @RibeiroDo171\n\n" .
+        "📤 *Após o pagamento, envie o comprovante para*: @Fraudarei\n\n" .
         "📦 *Código de rastreio do pedido:* `$codigoRastreio`\n" .
         "Use o comando /status seguido do código para acompanhar seu pedido.";
 
