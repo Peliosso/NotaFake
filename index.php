@@ -141,6 +141,74 @@ if (strpos($message, "/resgatar") === 0) {
     exit;
 }
 
+// ARQUIVO PARA SALVAR STATUS DOS PEDIDOS
+$statusFile = "status.json";
+if (!file_exists($statusFile)) file_put_contents($statusFile, "{}");
+$statuses = json_decode(file_get_contents($statusFile), true);
+
+// COMANDO ADMIN PARA DEFINIR STATUS
+if (strpos($message, "/setstatus") === 0) {
+    if ($chat_id != "7926471341") { // ID do admin
+        sendMessage($chat_id, "❌ Você não tem permissão para isso.");
+        exit;
+    }
+
+    $parts = explode(" ", $message, 2);
+    if (!isset($parts[1]) || strlen($parts[1]) != 8) {
+        sendMessage($chat_id, "❌ Digite o código de rastreio de 8 dígitos. Exemplo:\n/setstatus 12345678");
+        exit;
+    }
+
+    $codigo = $parts[1];
+    $keyboard = [
+        "inline_keyboard" => [
+            [["text"=>"📦 Preparando", "callback_data"=>"status_{$codigo}_preparando"]],
+            [["text"=>"🚛 Em Transporte", "callback_data"=>"status_{$codigo}_transporte"]],
+            [["text"=>"✅ Entregue", "callback_data"=>"status_{$codigo}_entregue"]],
+            [["text"=>"❌ Cancelado", "callback_data"=>"status_{$codigo}_cancelado"]]
+        ]
+    ];
+
+    sendMessage($chat_id, "Escolha o status do pedido `$codigo`:", $keyboard);
+    exit;
+}
+
+// TRATAMENTO DOS BOTÕES INLINE PARA STATUS (ADMIN)
+if (strpos($callback_query, "status_") === 0) {
+    list(, $codigo, $novoStatus) = explode("_", $callback_query, 3);
+    $statuses[$codigo] = $novoStatus;
+    file_put_contents($statusFile, json_encode($statuses));
+    editMessage($chat_id, $message_id, "✅ Status do pedido `$codigo` definido como: *$novoStatus*");
+    exit;
+}
+
+// COMANDO /status PARA USUÁRIO
+if (strpos($message, "/status") === 0) {
+    $parts = explode(" ", $message, 2);
+    if (!isset($parts[1]) || strlen($parts[1]) != 8) {
+        sendMessage($chat_id, "❌ Digite seu código de rastreio de 8 dígitos. Exemplo:\n/status 12345678");
+        exit;
+    }
+
+    $codigo = $parts[1];
+    if (!isset($statuses[$codigo])) {
+        sendMessage($chat_id, "❌ Pedido não encontrado ou ainda sem status definido.");
+        exit;
+    }
+
+    $status = $statuses[$codigo];
+    $statusTexto = match($status) {
+        "preparando" => "📦 Preparando",
+        "transporte" => "🚛 Em Transporte",
+        "entregue" => "✅ Entregue",
+        "cancelado" => "❌ Cancelado",
+        default => "❓ Status desconhecido"
+    };
+
+    sendMessage($chat_id, "📌 Status do seu pedido `$codigo`:\n$statusTexto");
+    exit;
+}
+
 // COMANDO /comprar
 if ($message == "/comprar") {
     $usuarios[$chat_id] = ["etapa" => "nome"];
