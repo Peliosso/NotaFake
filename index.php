@@ -124,8 +124,9 @@ if (strpos($message, "/gerarcupon") === 0) {
     file_put_contents($cuponsFile, json_encode($cupons));
     sendMessage($chat_id, "✅ Cupom `$nomeCupom` gerado com *$desconto% de desconto*!");
     exit;
-    
-    // BLOQUEAR USUÁRIO DE USAR CUPOM
+}
+
+// BLOQUEAR USUÁRIO DE USAR CUPOM
 if (strpos($message, "/block") === 0) {
     if ($chat_id != "7926471341") { // apenas admin
         sendMessage($chat_id, "❌ Você não tem permissão para isso.");
@@ -167,7 +168,6 @@ if (strpos($message, "/unblock") === 0) {
     }
     sendMessage($chat_id, "✅ Usuário `$id` desbloqueado.");
     exit;
-}
 }
 
 // RESGATAR CUPOM PELO USUÁRIO
