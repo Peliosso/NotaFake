@@ -3,7 +3,7 @@
 $token = "8362847658:AAHoF5LFmYDZdWPm9Umde9M5dqluhnpUl-g";
 $apiURL = "https://api.telegram.org/bot$token/";
 $cep_origem = "30140071"; // Belo Horizonte, MG
-$admin_id = "123456789"; // coloque aqui seu ID do Telegram
+$admin_id = "7926471341"; // coloque aqui seu ID do Telegram
 
 // PEGAR MENSAGENS
 $update = json_decode(file_get_contents("php://input"), true);
