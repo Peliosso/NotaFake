@@ -98,41 +98,46 @@ if ($message == "/info") {
     exit;
 }
 
-// COMANDO /gerarcupon → gerar cupom
-if ($message == "/gerarcupon") {
-    $novoCupom = strtoupper(substr(md5(uniqid()), 0, 8));
-    $cupons[$novoCupom] = ["usado" => false];
+// GERAR CUPOM (SOMENTE VOCÊ)
+if (strpos($message, "/gerarcupon") === 0) {
+    if ($chat_id != "7926471341") {
+        sendMessage($chat_id, "❌ Você não tem permissão para gerar cupons.");
+        exit;
+    }
+    $parts = explode(" ", $message, 2);
+    if (!isset($parts[1]) || empty($parts[1])) {
+        sendMessage($chat_id, "❌ Digite o nome do cupom. Exemplo:\n/gerarcupon MEUCUPOM");
+        exit;
+    }
+    $nomeCupom = strtoupper(trim($parts[1]));
+    $cupons[$nomeCupom] = ["usado" => false];
     file_put_contents($cuponsFile, json_encode($cupons));
-    sendMessage($chat_id, "🎟️ Cupom gerado com sucesso!\n\n*Código:* `$novoCupom`\nUse /resgatar para aplicar no pedido.");
+    sendMessage($chat_id, "✅ Cupom `$nomeCupom` gerado com sucesso!");
     exit;
 }
 
-// COMANDO /resgatar → resgatar cupom
-if ($message == "/resgatar") {
-    $usuarios[$chat_id]["etapa"] = "resgatar";
-    file_put_contents($usuariosFile, json_encode($usuarios));
-    sendMessage($chat_id, "🎟️ Digite seu *CUPOM*:");
-    exit;
-}
-
-// PROCESSO DE RESGATE DO CUPOM
-if (isset($usuarios[$chat_id]["etapa"]) && $usuarios[$chat_id]["etapa"] == "resgatar" && $message) {
-    $cupomDigitado = strtoupper($message);
+// RESGATAR CUPOM PELO USUÁRIO
+if (strpos($message, "/resgatar") === 0) {
+    $parts = explode(" ", $message, 2);
+    if (!isset($parts[1]) || empty($parts[1])) {
+        sendMessage($chat_id, "❌ Digite o cupom que deseja resgatar. Exemplo:\n/resgatar MEUCUPOM");
+        exit;
+    }
+    $cupomDigitado = strtoupper(trim($parts[1]));
 
     if (!isset($cupons[$cupomDigitado])) {
         sendMessage($chat_id, "❌ Cupom inválido!");
         exit;
     }
-
     if ($cupons[$cupomDigitado]["usado"]) {
         sendMessage($chat_id, "❌ Este cupom já foi usado!");
         exit;
     }
 
     $usuarios[$chat_id]["cupom"] = $cupomDigitado;
-    $usuarios[$chat_id]["etapa"] = "nome"; // Começa o formulário
+    $usuarios[$chat_id]["etapa"] = "nome"; // começa o formulário
     file_put_contents($usuariosFile, json_encode($usuarios));
-    sendMessage($chat_id, "✅ Cupom aplicado com sucesso! Você receberá *30% de desconto* no total.\n\nVamos começar o formulário.\nDigite seu *NOME COMPLETO*:");
+    sendMessage($chat_id, "✅ Cupom aplicado com sucesso! Você receberá *30% de desconto* no total.\n\nDigite seu *NOME COMPLETO* para iniciar o formulário:");
     exit;
 }
 
@@ -154,13 +159,11 @@ if (isset($usuarios[$chat_id]) && $message && !$callback_query) {
             $usuarios[$chat_id]["etapa"] = "rua";
             sendMessage($chat_id, "🏠 Informe sua *RUA*:");
             break;
-
         case "rua":
             $usuarios[$chat_id]["rua"] = $message;
             $usuarios[$chat_id]["etapa"] = "numero";
             sendMessage($chat_id, "🔢 Informe o *NÚMERO* da residência:");
             break;
-
         case "numero":
             if (!is_numeric($message)) {
                 sendMessage($chat_id, "❌ Número inválido! Digite apenas números:");
@@ -170,7 +173,6 @@ if (isset($usuarios[$chat_id]) && $message && !$callback_query) {
             $usuarios[$chat_id]["etapa"] = "cep";
             sendMessage($chat_id, "📮 Informe seu *CEP* (apenas números):");
             break;
-
         case "cep":
             if (!is_numeric($message) || strlen($message) != 8) {
                 sendMessage($chat_id, "❌ CEP inválido! Digite um CEP válido:");
@@ -180,24 +182,20 @@ if (isset($usuarios[$chat_id]) && $message && !$callback_query) {
             $usuarios[$chat_id]["etapa"] = "cidade";
             sendMessage($chat_id, "🌆 Informe sua *CIDADE*:");
             break;
-
         case "cidade":
             $usuarios[$chat_id]["cidade"] = $message;
             $usuarios[$chat_id]["etapa"] = "estado";
             sendMessage($chat_id, "🏙 Informe seu *ESTADO*:");
             break;
-
         case "estado":
             $usuarios[$chat_id]["estado"] = $message;
             $usuarios[$chat_id]["etapa"] = "bairro";
             sendMessage($chat_id, "📍 Informe seu *BAIRRO*:");
             break;
-
         case "bairro":
             $usuarios[$chat_id]["bairro"] = $message;
             $usuarios[$chat_id]["etapa"] = "cedulas";
 
-            // Envia botões de cédulas
             $keyboard = [
                 "inline_keyboard" => [
                     [["text" => "💵 100 🐟", "callback_data" => "cedula_100"]],
@@ -208,16 +206,11 @@ if (isset($usuarios[$chat_id]) && $message && !$callback_query) {
             ];
             sendMessage($chat_id, "💸 Escolha o valor das *CÉDULAS*:", $keyboard);
             break;
-
-        case "resgatar":
-            // já tratado acima
-            break;
     }
-
     file_put_contents($usuariosFile, json_encode($usuarios));
 }
 
-// TRATAMENTO DA ESCOLHA DAS CÉDULAS → EDITA A MESMA MENSAGEM
+// TRATAMENTO DAS CÉDULAS
 if (strpos($callback_query, "cedula_") === 0) {
     $usuarios[$chat_id]["cedulas"] = strtoupper(str_replace("cedula_", "", $callback_query));
     $usuarios[$chat_id]["etapa"] = "quantidade";
@@ -238,21 +231,11 @@ if (strpos($callback_query, "cedula_") === 0) {
     editMessage($chat_id, $message_id, "🔢 Escolha a *quantidade* desejada:", $keyboard);
 }
 
-// TRATAMENTO DA ESCOLHA DA QUANTIDADE → ANIMAÇÃO + RESUMO
+// FINALIZAÇÃO E APLICAÇÃO DO CUPOM
 if (strpos($callback_query, "qtd_") === 0) {
     $quantidade = str_replace("qtd_", "", $callback_query);
 
-    $precos = [
-        "1k" => 170,
-        "2k" => 310,
-        "3k" => 450,
-        "4k" => 580,
-        "5k" => 740,
-        "10k" => 1320,
-        "25k" => 2270,
-        "50k" => 0
-    ];
-
+    $precos = ["1k"=>170,"2k"=>310,"3k"=>450,"4k"=>580,"5k"=>740,"10k"=>1320,"25k"=>2270,"50k"=>0];
     $usuarios[$chat_id]["quantidade"] = strtoupper($quantidade);
     $preco = $precos[$quantidade] ?? 0;
 
@@ -260,7 +243,6 @@ if (strpos($callback_query, "qtd_") === 0) {
     $frete = ($quantidade === "50k") ? 0 : calcularFrete($cep_destino);
     $total = $preco + $frete;
 
-    // Aplicar desconto se houver cupom
     if (!empty($usuarios[$chat_id]["cupom"])) {
         $totalComDesconto = $total * 0.7; // 30% de desconto
         $cupons[$usuarios[$chat_id]["cupom"]]["usado"] = true;
@@ -269,7 +251,6 @@ if (strpos($callback_query, "qtd_") === 0) {
         $totalComDesconto = $total;
     }
 
-    // Animação interativa
     editMessage($chat_id, $message_id, "🔄 Calculando *quantidade*...");
     sleep(1);
     editMessage($chat_id, $message_id, "📦 Preparando *envio*...");
