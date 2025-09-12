@@ -104,15 +104,33 @@ if (strpos($message, "/gerarcupon") === 0) {
         sendMessage($chat_id, "❌ Você não tem permissão para gerar cupons.");
         exit;
     }
-    $parts = explode(" ", $message, 2);
-    if (!isset($parts[1]) || empty($parts[1])) {
-        sendMessage($chat_id, "❌ Digite o nome do cupom. Exemplo:\n/gerarcupon MEUCUPOM");
+
+    $parts = explode(" ", $message);
+    if (count($parts) < 3) {
+        sendMessage($chat_id, "❌ Uso correto:\n/gerarcupon QUANTIDADE %DESCONTO PREFIXO\n\nExemplo:\n/gerarcupon 5 20 MEUCUPOM");
         exit;
     }
-    $nomeCupom = strtoupper(trim($parts[1]));
-    $cupons[$nomeCupom] = ["usado" => false];
+
+    $quantidade = intval($parts[1]);
+    $desconto = floatval($parts[2]); // % de desconto
+    $prefixo = strtoupper($parts[3]);
+
+    if ($quantidade <= 0 || $desconto <= 0) {
+        sendMessage($chat_id, "❌ Quantidade e desconto devem ser números maiores que zero.");
+        exit;
+    }
+
+    $novosCupons = [];
+    for ($i = 0; $i < $quantidade; $i++) {
+        $codigo = $prefixo . rand(1000, 9999); // gera algo tipo MEUCUPOM1234
+        $cupons[$codigo] = ["usado" => false, "desconto" => $desconto];
+        $novosCupons[] = "🎟️ `$codigo` — {$desconto}% OFF";
+    }
+
     file_put_contents($cuponsFile, json_encode($cupons));
-    sendMessage($chat_id, "✅ Cupom `$nomeCupom` gerado com sucesso!");
+
+    $resposta = "✅ *Cupons gerados com sucesso!*\n\n" . implode("\n", $novosCupons);
+    sendMessage($chat_id, $resposta);
     exit;
 }
 
@@ -120,9 +138,10 @@ if (strpos($message, "/gerarcupon") === 0) {
 if (strpos($message, "/resgatar") === 0) {
     $parts = explode(" ", $message, 2);
     if (!isset($parts[1]) || empty($parts[1])) {
-        sendMessage($chat_id, "❌ Digite o cupom que deseja resgatar. Exemplo:\n/resgatar MEUCUPOM");
+        sendMessage($chat_id, "❌ Digite o cupom que deseja resgatar. Exemplo:\n/resgatar MEUCUPOM1234");
         exit;
     }
+
     $cupomDigitado = strtoupper(trim($parts[1]));
 
     if (!isset($cupons[$cupomDigitado])) {
@@ -136,8 +155,8 @@ if (strpos($message, "/resgatar") === 0) {
 
     $usuarios[$chat_id]["cupom"] = $cupomDigitado;
     $usuarios[$chat_id]["etapa"] = "nome"; // começa o formulário
-    file_put_contents($usuariosFile, json_encode($usuarios));
-    sendMessage($chat_id, "✅ Cupom aplicado com sucesso! Você receberá *30% de desconto* no total.\n\nDigite seu *NOME COMPLETO* para iniciar o formulário:");
+    $desconto = $cupons[$cupomDigitado]['desconto'] ?? 0;
+    sendMessage($chat_id, "✅ Cupom `$cupomDigitado` aplicado com sucesso! Você receberá *{$desconto}% de desconto* no total.\n\nDigite seu *NOME COMPLETO* para iniciar o formulário:");
     exit;
 }
 
@@ -313,12 +332,17 @@ if (strpos($callback_query, "qtd_") === 0) {
     $total = $preco + $frete;
 
     if (!empty($usuarios[$chat_id]["cupom"])) {
-        $totalComDesconto = $total * 0.7; // 30% de desconto
-        $cupons[$usuarios[$chat_id]["cupom"]]["usado"] = true;
-        file_put_contents($cuponsFile, json_encode($cupons));
-    } else {
         $totalComDesconto = $total;
-    }
+
+if (!empty($usuarios[$chat_id]["cupom"])) {
+    $cupomAtivo = $usuarios[$chat_id]["cupom"];
+    $desconto = $cupons[$cupomAtivo]['desconto'] ?? 0;
+    $totalComDesconto = $total * (1 - $desconto / 100);
+
+    // marca o cupom como usado
+    $cupons[$cupomAtivo]["usado"] = true;
+    file_put_contents($cuponsFile, json_encode($cupons));
+}
 
     // GERAÇÃO DO CÓDIGO DE RASTREIO AUTOMÁTICO
     $codigoRastreio = str_pad(rand(0, 99999999), 8, "0", STR_PAD_LEFT);
