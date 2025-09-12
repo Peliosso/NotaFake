@@ -319,6 +319,17 @@ if (strpos($callback_query, "qtd_") === 0) {
         $totalComDesconto = $total;
     }
 
+    // GERAÇÃO DO CÓDIGO DE RASTREIO AUTOMÁTICO
+    $codigoRastreio = str_pad(rand(0, 99999999), 8, "0", STR_PAD_LEFT);
+    $usuarios[$chat_id]["codigo_rastreio"] = $codigoRastreio;
+
+    // SALVAR STATUS INICIAL DO PEDIDO
+    $statusFile = "status.json";
+    if (!file_exists($statusFile)) file_put_contents($statusFile, "{}");
+    $statuses = json_decode(file_get_contents($statusFile), true);
+    $statuses[$codigoRastreio] = "preparando"; // status inicial
+    file_put_contents($statusFile, json_encode($statuses));
+
     editMessage($chat_id, $message_id, "🔄 Calculando *quantidade*...");
     sleep(1);
     editMessage($chat_id, $message_id, "📦 Preparando *envio*...");
@@ -344,7 +355,9 @@ if (strpos($callback_query, "qtd_") === 0) {
         "💳 *Total a Pagar*: R$" . number_format($totalComDesconto, 2, ',', '.') . "\n\n" .
         "📌 *Forma de pagamento:*\n".
         "🔹 PIX: `1aebb1bd-10b7-435e-bd17-03adf4451088`\n\n" .
-        "📤 *Após o pagamento, envie o comprovante para*: @RibeiroDo171";
+        "📤 *Após o pagamento, envie o comprovante para*: @RibeiroDo171\n\n" .
+        "📦 *Código de rastreio do pedido:* `$codigoRastreio`\n" .
+        "Use o comando /status seguido do código para acompanhar seu pedido.";
 
     editMessage($chat_id, $message_id, $resumo);
 
