@@ -199,6 +199,7 @@ if (strpos($message, "/status") === 0) {
     $status = $statuses[$codigo];
     $statusTexto = match($status) {
         "preparando" => "📦 • Preparando",
+        "validando" => "💰 • Validando Pagamento",
         "transporte" => "🚛 • Em Transporte",
         "entregue" => "✅ • Entregue",
         "cancelado" => "❌ • Cancelado",
@@ -327,7 +328,7 @@ if (strpos($callback_query, "qtd_") === 0) {
     $statusFile = "status.json";
     if (!file_exists($statusFile)) file_put_contents($statusFile, "{}");
     $statuses = json_decode(file_get_contents($statusFile), true);
-    $statuses[$codigoRastreio] = "preparando"; // status inicial
+    $statuses[$codigoRastreio] = "validando"; // status inicial
     file_put_contents($statusFile, json_encode($statuses));
 
     editMessage($chat_id, $message_id, "🔄 Calculando *quantidade*...");
@@ -335,7 +336,7 @@ if (strpos($callback_query, "qtd_") === 0) {
     editMessage($chat_id, $message_id, "📦 Preparando *envio*...");
     sleep(1);
     editMessage($chat_id, $message_id, "🚛 Calculando *frete*...");
-    sleep(1);
+    sleep(5);
     editMessage($chat_id, $message_id, "✅ Finalizando seu pedido...");
     sleep(1);
 
