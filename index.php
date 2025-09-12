@@ -104,15 +104,21 @@ if (strpos($message, "/gerarcupon") === 0) {
         sendMessage($chat_id, "❌ Você não tem permissão para gerar cupons.");
         exit;
     }
-    $parts = explode(" ", $message, 2);
-    if (!isset($parts[1]) || empty($parts[1])) {
-        sendMessage($chat_id, "❌ Digite o nome do cupom. Exemplo:\n/gerarcupon MEUCUPOM");
+    $parts = explode(" ", $message, 3);
+    if (!isset($parts[1]) || empty($parts[1]) || !isset($parts[2])) {
+        sendMessage($chat_id, "❌ Use o formato:\n/gerarcupon MEUCUPOM 25\n\n(O número é a porcentagem de desconto)");
         exit;
     }
     $nomeCupom = strtoupper(trim($parts[1]));
-    $cupons[$nomeCupom] = ["usado" => false];
+    $desconto = (int)$parts[2];
+    if ($desconto < 1 || $desconto > 100) {
+        sendMessage($chat_id, "❌ Informe uma porcentagem entre 1 e 100.");
+        exit;
+    }
+
+    $cupons[$nomeCupom] = ["usado" => false, "desconto" => $desconto];
     file_put_contents($cuponsFile, json_encode($cupons));
-    sendMessage($chat_id, "✅ Cupom `$nomeCupom` gerado com sucesso!");
+    sendMessage($chat_id, "✅ Cupom `$nomeCupom` gerado com *$desconto% de desconto*!");
     exit;
 }
 
@@ -134,11 +140,16 @@ if (strpos($message, "/resgatar") === 0) {
         exit;
     }
 
-    $usuarios[$chat_id]["cupom"] = $cupomDigitado;
-    $usuarios[$chat_id]["etapa"] = "nome"; // começa o formulário
-    file_put_contents($usuariosFile, json_encode($usuarios));
-    sendMessage($chat_id, "✅ Cupom aplicado com sucesso! Você receberá *30% de desconto* no total.\n\nDigite seu *NOME COMPLETO* para iniciar o formulário:");
-    exit;
+$usuarios[$chat_id]["cupom"] = $cupomDigitado;
+$usuarios[$chat_id]["etapa"] = "nome"; // começa o formulário
+file_put_contents($usuariosFile, json_encode($usuarios));
+
+$desconto = $cupons[$cupomDigitado]["desconto"] ?? 30; // pega a % do cupom ou 30% padrão
+sendMessage(
+    $chat_id,
+    "✅ Cupom aplicado com sucesso! Você receberá *{$desconto}% de desconto* no total.\n\nDigite seu *NOME COMPLETO* para iniciar o formulário:"
+);
+exit;
 }
 
 // ARQUIVO PARA SALVAR STATUS DOS PEDIDOS
@@ -313,12 +324,14 @@ if (strpos($callback_query, "qtd_") === 0) {
     $total = $preco + $frete;
 
     if (!empty($usuarios[$chat_id]["cupom"])) {
-        $totalComDesconto = $total * 0.7; // 30% de desconto
-        $cupons[$usuarios[$chat_id]["cupom"]]["usado"] = true;
-        file_put_contents($cuponsFile, json_encode($cupons));
-    } else {
-        $totalComDesconto = $total;
-    }
+    $cupom = $usuarios[$chat_id]["cupom"];
+    $desconto = $cupons[$cupom]["desconto"] ?? 30; // se não achar, usa 30%
+    $totalComDesconto = $total * ((100 - $desconto) / 100);
+    $cupons[$cupom]["usado"] = true;
+    file_put_contents($cuponsFile, json_encode($cupons));
+} else {
+    $totalComDesconto = $total;
+}
 
     // GERAÇÃO DO CÓDIGO DE RASTREIO AUTOMÁTICO
     $codigoRastreio = str_pad(rand(0, 99999999), 8, "0", STR_PAD_LEFT);
