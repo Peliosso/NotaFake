@@ -20,6 +20,10 @@ $cuponsFile = "cupons.json";
 if (!file_exists($cuponsFile)) file_put_contents($cuponsFile, "{}");
 $cupons = json_decode(file_get_contents($cuponsFile), true);
 
+$bloqueadosFile = "bloqueados.json";
+if (!file_exists($bloqueadosFile)) file_put_contents($bloqueadosFile, "[]");
+$bloqueados = json_decode(file_get_contents($bloqueadosFile), true);
+
 // FUNÇÃO PARA ENVIAR MENSAGENS
 function sendMessage($chat_id, $text, $reply_markup = null) {
     global $apiURL;
@@ -120,10 +124,61 @@ if (strpos($message, "/gerarcupon") === 0) {
     file_put_contents($cuponsFile, json_encode($cupons));
     sendMessage($chat_id, "✅ Cupom `$nomeCupom` gerado com *$desconto% de desconto*!");
     exit;
+    
+    // BLOQUEAR USUÁRIO DE USAR CUPOM
+if (strpos($message, "/block") === 0) {
+    if ($chat_id != "7926471341") { // apenas admin
+        sendMessage($chat_id, "❌ Você não tem permissão para isso.");
+        exit;
+    }
+
+    $parts = explode(" ", $message, 2);
+    if (!isset($parts[1]) || !is_numeric($parts[1])) {
+        sendMessage($chat_id, "❌ Use: /block ID_DO_USUARIO");
+        exit;
+    }
+
+    $id = $parts[1];
+    if (!in_array($id, $bloqueados)) {
+        $bloqueados[] = $id;
+        file_put_contents($bloqueadosFile, json_encode($bloqueados));
+    }
+    sendMessage($chat_id, "🚫 Usuário `$id` bloqueado de usar cupons.");
+    exit;
+}
+
+// DESBLOQUEAR USUÁRIO
+if (strpos($message, "/unblock") === 0) {
+    if ($chat_id != "7926471341") { // apenas admin
+        sendMessage($chat_id, "❌ Você não tem permissão para isso.");
+        exit;
+    }
+
+    $parts = explode(" ", $message, 2);
+    if (!isset($parts[1]) || !is_numeric($parts[1])) {
+        sendMessage($chat_id, "❌ Use: /unblock ID_DO_USUARIO");
+        exit;
+    }
+
+    $id = $parts[1];
+    if (in_array($id, $bloqueados)) {
+        $bloqueados = array_diff($bloqueados, [$id]);
+        file_put_contents($bloqueadosFile, json_encode(array_values($bloqueados)));
+    }
+    sendMessage($chat_id, "✅ Usuário `$id` desbloqueado.");
+    exit;
+}
 }
 
 // RESGATAR CUPOM PELO USUÁRIO
 if (strpos($message, "/resgatar") === 0) {
+    
+       // 🔒 Verifica se o usuário está bloqueado
+    if (in_array($chat_id, $bloqueados)) {
+        sendMessage($chat_id, "🚫 Você não tem permissão para usar cupons.");
+        exit;
+    }
+    
     $parts = explode(" ", $message, 2);
     if (!isset($parts[1]) || empty($parts[1])) {
         sendMessage($chat_id, "❌ Digite o cupom que deseja resgatar. Exemplo:\n/resgatar MEUCUPOM");
