@@ -155,13 +155,25 @@ if (strpos($message, "/setstatus") === 0) {
 
     $parts = explode(" ", $message, 2);
     if (!isset($parts[1]) || strlen($parts[1]) != 8) {
-        sendMessage($chat_id, "❌ Digite o código de rastreio de 8 dígitos. Exemplo:\n/setstatus 12345678");
+        sendMessage($chat_id, "❌ Digite o código de rastreio de 8 dígitos.\nExemplo:\n/setstatus 12345678");
         exit;
     }
 
     $codigo = $parts[1];
+    $statusFile = "status.json";
+    if (!file_exists($statusFile)) file_put_contents($statusFile, "{}");
+    $statuses = json_decode(file_get_contents($statusFile), true);
+
+    // Se não existir, cria com status inicial "validando pagamento"
+    if (!isset($statuses[$codigo])) {
+        $statuses[$codigo] = "validando pagamento";
+        file_put_contents($statusFile, json_encode($statuses));
+    }
+
+    // Botões inline para mudar o status
     $keyboard = [
         "inline_keyboard" => [
+            [["text"=>"💰 Validando Pagamento", "callback_data"=>"status_{$codigo}_validando pagamento"]],
             [["text"=>"📦 Preparando", "callback_data"=>"status_{$codigo}_preparando"]],
             [["text"=>"🚛 Em Transporte", "callback_data"=>"status_{$codigo}_transporte"]],
             [["text"=>"✅ Entregue", "callback_data"=>"status_{$codigo}_entregue"]],
@@ -169,16 +181,32 @@ if (strpos($message, "/setstatus") === 0) {
         ]
     ];
 
-    sendMessage($chat_id, "Escolha o status do pedido `$codigo`:", $keyboard);
+    sendMessage($chat_id, "Escolha o novo status do pedido `$codigo`:", $keyboard);
     exit;
 }
 
 // TRATAMENTO DOS BOTÕES INLINE PARA STATUS (ADMIN)
 if (strpos($callback_query, "status_") === 0) {
     list(, $codigo, $novoStatus) = explode("_", $callback_query, 3);
+
+    $statusFile = "status.json";
+    if (!file_exists($statusFile)) file_put_contents($statusFile, "{}");
+    $statuses = json_decode(file_get_contents($statusFile), true);
+
     $statuses[$codigo] = $novoStatus;
     file_put_contents($statusFile, json_encode($statuses));
-    editMessage($chat_id, $message_id, "✅ Status do pedido `$codigo` definido como: *$novoStatus*");
+
+    // Texto bonito para admin
+    $statusTexto = match($novoStatus) {
+        "validando pagamento" => "💰 Validando Pagamento",
+        "preparando" => "📦 Preparando",
+        "transporte" => "🚛 Em Transporte",
+        "entregue" => "✅ Entregue",
+        "cancelado" => "❌ Cancelado",
+        default => "❓ Status Desconhecido"
+    };
+
+    editMessage($chat_id, $message_id, "✅ Status do pedido `$codigo` atualizado para: *$statusTexto*");
     exit;
 }
 
@@ -327,7 +355,7 @@ if (strpos($callback_query, "qtd_") === 0) {
     $statusFile = "status.json";
     if (!file_exists($statusFile)) file_put_contents($statusFile, "{}");
     $statuses = json_decode(file_get_contents($statusFile), true);
-    $statuses[$codigoRastreio] = "preparando"; // status inicial
+    $statuses[$codigoRastreio] = "validando pagamento"; // status inicial ajustado
     file_put_contents($statusFile, json_encode($statuses));
 
     editMessage($chat_id, $message_id, "🔄 Calculando *quantidade*...");
@@ -356,12 +384,52 @@ if (strpos($callback_query, "qtd_") === 0) {
         "📌 *Forma de pagamento:*\n".
         "🔹 PIX: `1aebb1bd-10b7-435e-bd17-03adf4451088`\n\n" .
         "📤 *Após o pagamento, envie o comprovante para*: @RibeiroDo171\n\n" .
-        "📦 *Código de rastreio do pedido:* `$codigoRastreio`\n" .
-        "Use o comando /status seguido do código para acompanhar seu pedido.";
+        "📌 *Código de rastreio do pedido:* `$codigoRastreio`\n" .
+        "Use o comando `/status $codigoRastreio` para acompanhar seu pedido.";
 
     editMessage($chat_id, $message_id, $resumo);
 
     unset($usuarios[$chat_id]);
     file_put_contents($usuariosFile, json_encode($usuarios));
+}
+
+// COMANDO /status PARA USUÁRIO
+if (strpos($message, "/status") === 0) {
+    $parts = explode(" ", $message, 2);
+    if (!isset($parts[1]) || strlen($parts[1]) != 8) {
+        sendMessage($chat_id, "❌ Digite seu código de rastreio de 8 dígitos.\nExemplo:\n/status 12345678");
+        exit;
+    }
+
+    $codigo = $parts[1];
+    $statusFile = "status.json";
+    if (!file_exists($statusFile)) file_put_contents($statusFile, "{}");
+    $statuses = json_decode(file_get_contents($statusFile), true);
+
+    if (!isset($statuses[$codigo])) {
+        sendMessage($chat_id, "❌ Pedido não encontrado ou ainda sem status definido.");
+        exit;
+    }
+
+    $status = $statuses[$codigo];
+    $statusTexto = match($status) {
+        "validando pagamento" => "💰 Validando Pagamento",
+        "preparando" => "📦 Preparando",
+        "transporte" => "🚛 Em Transporte",
+        "entregue" => "✅ Entregue",
+        "cancelado" => "❌ Cancelado",
+        default => "❓ Status Desconhecido"
+    };
+
+    // Layout “cartão” com emojis e separadores
+    $mensagem = "📝 *Rastreamento de Pedido*\n".
+                "────────────────────\n".
+                "📌 *Código:* `$codigo`\n".
+                "📦 *Status Atual:* $statusTexto\n".
+                "────────────────────\n".
+                "⏱ *Última Atualização:* " . date("d/m/Y H:i") . "\n".
+                "🔔 Para dúvidas, contate: @RibeiroDo171";
+
+    sendMessage($chat_id, $mensagem);
 }
 ?>
