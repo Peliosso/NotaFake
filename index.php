@@ -11,12 +11,14 @@ $message = $update["message"]["text"] ?? null;
 $callback_query = $update["callback_query"]["data"] ?? null;
 $message_id = $update["callback_query"]["message"]["message_id"] ?? null;
 
-// ARQUIVO PARA SALVAR OS DADOS
+// ARQUIVOS PARA SALVAR OS DADOS
 $usuariosFile = "usuarios.json";
-if (!file_exists($usuariosFile)) {
-    file_put_contents($usuariosFile, "{}");
-}
+if (!file_exists($usuariosFile)) file_put_contents($usuariosFile, "{}");
 $usuarios = json_decode(file_get_contents($usuariosFile), true);
+
+$cuponsFile = "cupons.json";
+if (!file_exists($cuponsFile)) file_put_contents($cuponsFile, "{}");
+$cupons = json_decode(file_get_contents($cuponsFile), true);
 
 // FUNÇÃO PARA ENVIAR MENSAGENS
 function sendMessage($chat_id, $text, $reply_markup = null) {
@@ -26,9 +28,7 @@ function sendMessage($chat_id, $text, $reply_markup = null) {
         "text" => $text,
         "parse_mode" => "Markdown"
     ];
-    if ($reply_markup) {
-        $data["reply_markup"] = json_encode($reply_markup);
-    }
+    if ($reply_markup) $data["reply_markup"] = json_encode($reply_markup);
     $response = file_get_contents($apiURL . "sendMessage?" . http_build_query($data));
     return json_decode($response, true)["result"]["message_id"] ?? null;
 }
@@ -42,9 +42,7 @@ function editMessage($chat_id, $message_id, $text, $reply_markup = null) {
         "text" => $text,
         "parse_mode" => "Markdown"
     ];
-    if ($reply_markup) {
-        $data["reply_markup"] = json_encode($reply_markup);
-    }
+    if ($reply_markup) $data["reply_markup"] = json_encode($reply_markup);
     file_get_contents($apiURL . "editMessageText?" . http_build_query($data));
 }
 
@@ -97,6 +95,44 @@ if ($message == "/info") {
         "✅ Passa em teste com caneta detectora\n\n".
         "🫡 Referência: @Jokermetodosfree"
     );
+    exit;
+}
+
+// COMANDO /gerarcupon → gerar cupom
+if ($message == "/gerarcupon") {
+    $novoCupom = strtoupper(substr(md5(uniqid()), 0, 8));
+    $cupons[$novoCupom] = ["usado" => false];
+    file_put_contents($cuponsFile, json_encode($cupons));
+    sendMessage($chat_id, "🎟️ Cupom gerado com sucesso!\n\n*Código:* `$novoCupom`\nUse /resgatar para aplicar no pedido.");
+    exit;
+}
+
+// COMANDO /resgatar → resgatar cupom
+if ($message == "/resgatar") {
+    $usuarios[$chat_id]["etapa"] = "resgatar";
+    file_put_contents($usuariosFile, json_encode($usuarios));
+    sendMessage($chat_id, "🎟️ Digite seu *CUPOM*:");
+    exit;
+}
+
+// PROCESSO DE RESGATE DO CUPOM
+if (isset($usuarios[$chat_id]["etapa"]) && $usuarios[$chat_id]["etapa"] == "resgatar" && $message) {
+    $cupomDigitado = strtoupper($message);
+
+    if (!isset($cupons[$cupomDigitado])) {
+        sendMessage($chat_id, "❌ Cupom inválido!");
+        exit;
+    }
+
+    if ($cupons[$cupomDigitado]["usado"]) {
+        sendMessage($chat_id, "❌ Este cupom já foi usado!");
+        exit;
+    }
+
+    $usuarios[$chat_id]["cupom"] = $cupomDigitado;
+    $usuarios[$chat_id]["etapa"] = "nome"; // Começa o formulário
+    file_put_contents($usuariosFile, json_encode($usuarios));
+    sendMessage($chat_id, "✅ Cupom aplicado com sucesso! Você receberá *30% de desconto* no total.\n\nVamos começar o formulário.\nDigite seu *NOME COMPLETO*:");
     exit;
 }
 
@@ -172,6 +208,10 @@ if (isset($usuarios[$chat_id]) && $message && !$callback_query) {
             ];
             sendMessage($chat_id, "💸 Escolha o valor das *CÉDULAS*:", $keyboard);
             break;
+
+        case "resgatar":
+            // já tratado acima
+            break;
     }
 
     file_put_contents($usuariosFile, json_encode($usuarios));
@@ -220,6 +260,15 @@ if (strpos($callback_query, "qtd_") === 0) {
     $frete = ($quantidade === "50k") ? 0 : calcularFrete($cep_destino);
     $total = $preco + $frete;
 
+    // Aplicar desconto se houver cupom
+    if (!empty($usuarios[$chat_id]["cupom"])) {
+        $totalComDesconto = $total * 0.7; // 30% de desconto
+        $cupons[$usuarios[$chat_id]["cupom"]]["usado"] = true;
+        file_put_contents($cuponsFile, json_encode($cupons));
+    } else {
+        $totalComDesconto = $total;
+    }
+
     // Animação interativa
     editMessage($chat_id, $message_id, "🔄 Calculando *quantidade*...");
     sleep(1);
@@ -242,7 +291,8 @@ if (strpos($callback_query, "qtd_") === 0) {
         "🔢 Quantidade: {$usuarios[$chat_id]['quantidade']}\n" .
         "💰 Valor: R$" . number_format($preco, 2, ',', '.') . "\n" .
         "🚛 Frete: R$" . number_format($frete, 2, ',', '.') . "\n" .
-        "💳 *Total a Pagar*: R$" . number_format($total, 2, ',', '.') . "\n\n" .
+        (!empty($usuarios[$chat_id]["cupom"]) ? "🎟️ Desconto aplicado: 30%\n" : "") .
+        "💳 *Total a Pagar*: R$" . number_format($totalComDesconto, 2, ',', '.') . "\n\n" .
         "📌 *Forma de pagamento:*\n".
         "🔹 PIX: `1aebb1bd-10b7-435e-bd17-03adf4451088`\n\n" .
         "📤 *Após o pagamento, envie o comprovante para*: @RibeiroDo171";
