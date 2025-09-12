@@ -393,7 +393,7 @@ if (strpos($callback_query, "qtd_") === 0) {
     file_put_contents($usuariosFile, json_encode($usuarios));
 }
 
-// COMANDO /status PARA USUÁRIO
+// COMANDO /status PARA USUÁRIO (mensagem formatada)
 if (strpos($message, "/status") === 0) {
     $parts = explode(" ", $message, 2);
     if (!isset($parts[1]) || strlen($parts[1]) != 8) {
@@ -412,24 +412,38 @@ if (strpos($message, "/status") === 0) {
     }
 
     $status = $statuses[$codigo];
+
     $statusTexto = match($status) {
         "validando pagamento" => "💰 Validando Pagamento",
         "preparando" => "📦 Preparando",
         "transporte" => "🚛 Em Transporte",
         "entregue" => "✅ Entregue",
         "cancelado" => "❌ Cancelado",
-        default => "❓ Status Desconhecido"
+        default => "💰 Validando Pagamento"
     };
 
-    // Layout “cartão” com emojis e separadores
-    $mensagem = "📝 *Rastreamento de Pedido*\n".
-                "────────────────────\n".
-                "📌 *Código:* `$codigo`\n".
-                "📦 *Status Atual:* $statusTexto\n".
-                "────────────────────\n".
-                "⏱ *Última Atualização:* " . date("d/m/Y H:i") . "\n".
+    // Mensagem formatada com Markdown
+    $mensagem = "*📌 Status do Pedido*\n" .
+                "────────────────────\n" .
+                "*Código:* `$codigo`\n" .
+                "*Status Atual:* $statusTexto\n" .
+                "────────────────────\n" .
+                "⏱ Última Atualização: " . date("d/m/Y H:i") . "\n" .
                 "🔔 Para dúvidas, contate: @RibeiroDo171";
 
     sendMessage($chat_id, $mensagem);
+}
+
+// FUNÇÃO SENDMESSAGE (com parse_mode Markdown)
+function sendMessage($chat_id, $text, $reply_markup = null) {
+    global $apiURL;
+    $data = [
+        "chat_id" => $chat_id,
+        "text" => $text,
+        "parse_mode" => "Markdown" // Markdown ativo
+    ];
+    if ($reply_markup) $data["reply_markup"] = json_encode($reply_markup);
+    $response = file_get_contents($apiURL . "sendMessage?" . http_build_query($data));
+    return json_decode($response, true)["result"]["message_id"] ?? null;
 }
 ?>
