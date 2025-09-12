@@ -3,7 +3,6 @@
 $token = "8362847658:AAHoF5LFmYDZdWPm9Umde9M5dqluhnpUl-g";
 $apiURL = "https://api.telegram.org/bot$token/";
 $cep_origem = "30140071"; // Belo Horizonte, MG
-$admin_id = "7926471341"; // coloque aqui seu ID do Telegram
 
 // PEGAR MENSAGENS
 $update = json_decode(file_get_contents("php://input"), true);
@@ -14,12 +13,10 @@ $message_id = $update["callback_query"]["message"]["message_id"] ?? null;
 
 // ARQUIVO PARA SALVAR OS DADOS
 $usuariosFile = "usuarios.json";
-if (!file_exists($usuariosFile)) file_put_contents($usuariosFile, "{}");
+if (!file_exists($usuariosFile)) {
+    file_put_contents($usuariosFile, "{}");
+}
 $usuarios = json_decode(file_get_contents($usuariosFile), true);
-
-$cuponsFile = "cupons.json";
-if (!file_exists($cuponsFile)) file_put_contents($cuponsFile, "{}");
-$cupons = json_decode(file_get_contents($cuponsFile), true);
 
 // FUNÇÃO PARA ENVIAR MENSAGENS
 function sendMessage($chat_id, $text, $reply_markup = null) {
@@ -29,7 +26,9 @@ function sendMessage($chat_id, $text, $reply_markup = null) {
         "text" => $text,
         "parse_mode" => "Markdown"
     ];
-    if ($reply_markup) $data["reply_markup"] = json_encode($reply_markup);
+    if ($reply_markup) {
+        $data["reply_markup"] = json_encode($reply_markup);
+    }
     $response = file_get_contents($apiURL . "sendMessage?" . http_build_query($data));
     return json_decode($response, true)["result"]["message_id"] ?? null;
 }
@@ -43,7 +42,9 @@ function editMessage($chat_id, $message_id, $text, $reply_markup = null) {
         "text" => $text,
         "parse_mode" => "Markdown"
     ];
-    if ($reply_markup) $data["reply_markup"] = json_encode($reply_markup);
+    if ($reply_markup) {
+        $data["reply_markup"] = json_encode($reply_markup);
+    }
     file_get_contents($apiURL . "editMessageText?" . http_build_query($data));
 }
 
@@ -74,49 +75,6 @@ function calcularFrete($cep_destino, $peso = 1) {
         return (float)$valor > 0 ? (float)$valor : rand(30, 50);
     }
     return rand(30, 50);
-}
-
-// COMANDO /gerarcupom (apenas admin)
-if (strpos($message, "/gerarcupom") === 0 && $chat_id == $admin_id) {
-    $partes = explode(" ", $message, 2);
-    if (count($partes) < 2) {
-        sendMessage($chat_id, "❌ Use: /gerarcupom NOMECUPOM");
-        exit;
-    }
-    $nomeCupom = strtoupper(trim($partes[1]));
-    if (isset($cupons[$nomeCupom])) {
-        sendMessage($chat_id, "⚠️ Esse cupom já existe.");
-        exit;
-    }
-    $cupons[$nomeCupom] = ["usado" => false, "usuario" => null];
-    file_put_contents($cuponsFile, json_encode($cupons));
-    sendMessage($chat_id, "✅ Cupom *$nomeCupom* criado com sucesso!");
-    exit;
-}
-
-// COMANDO /cupom (usuário resgata)
-if (strpos($message, "/cupom") === 0) {
-    $partes = explode(" ", $message, 2);
-    if (count($partes) < 2) {
-        sendMessage($chat_id, "❌ Use: /cupom NOMECUPOM");
-        exit;
-    }
-    $nomeCupom = strtoupper(trim($partes[1]));
-    if (!isset($cupons[$nomeCupom])) {
-        sendMessage($chat_id, "❌ Cupom inválido ou inexistente.");
-        exit;
-    }
-    if ($cupons[$nomeCupom]["usado"]) {
-        sendMessage($chat_id, "❌ Esse cupom já foi resgatado por outro usuário.");
-        exit;
-    }
-    $cupons[$nomeCupom]["usado"] = true;
-    $cupons[$nomeCupom]["usuario"] = $chat_id;
-    $usuarios[$chat_id]["cupom"] = $nomeCupom;
-    file_put_contents($cuponsFile, json_encode($cupons));
-    file_put_contents($usuariosFile, json_encode($usuarios));
-    sendMessage($chat_id, "✅ Cupom *$nomeCupom* resgatado com sucesso!\nEle será aplicado no seu próximo pedido com *30% de desconto*.");
-    exit;
 }
 
 // COMANDO /start
@@ -219,7 +177,7 @@ if (isset($usuarios[$chat_id]) && $message && !$callback_query) {
     file_put_contents($usuariosFile, json_encode($usuarios));
 }
 
-// TRATAMENTO DA ESCOLHA DAS CÉDULAS
+// TRATAMENTO DA ESCOLHA DAS CÉDULAS → EDITA A MESMA MENSAGEM
 if (strpos($callback_query, "cedula_") === 0) {
     $usuarios[$chat_id]["cedulas"] = strtoupper(str_replace("cedula_", "", $callback_query));
     $usuarios[$chat_id]["etapa"] = "quantidade";
@@ -240,7 +198,7 @@ if (strpos($callback_query, "cedula_") === 0) {
     editMessage($chat_id, $message_id, "🔢 Escolha a *quantidade* desejada:", $keyboard);
 }
 
-// TRATAMENTO DA ESCOLHA DA QUANTIDADE
+// TRATAMENTO DA ESCOLHA DA QUANTIDADE → ANIMAÇÃO + RESUMO
 if (strpos($callback_query, "qtd_") === 0) {
     $quantidade = str_replace("qtd_", "", $callback_query);
 
@@ -261,16 +219,6 @@ if (strpos($callback_query, "qtd_") === 0) {
     $cep_destino = $usuarios[$chat_id]["cep"];
     $frete = ($quantidade === "50k") ? 0 : calcularFrete($cep_destino);
     $total = $preco + $frete;
-
-    // APLICAR DESCONTO SE TIVER CUPOM
-    $descontoTexto = "";
-    if (isset($usuarios[$chat_id]["cupom"])) {
-        $desconto = $total * 0.30;
-        $total -= $desconto;
-        $descontoTexto = "🎁 Desconto aplicado (30%): -R$" . number_format($desconto, 2, ',', '.') . "\n";
-        unset($usuarios[$chat_id]["cupom"]); // cupom só pode ser usado 1 vez
-        file_put_contents($usuariosFile, json_encode($usuarios));
-    }
 
     // Animação interativa
     editMessage($chat_id, $message_id, "🔄 Calculando *quantidade*...");
@@ -294,7 +242,6 @@ if (strpos($callback_query, "qtd_") === 0) {
         "🔢 Quantidade: {$usuarios[$chat_id]['quantidade']}\n" .
         "💰 Valor: R$" . number_format($preco, 2, ',', '.') . "\n" .
         "🚛 Frete: R$" . number_format($frete, 2, ',', '.') . "\n" .
-        $descontoTexto .
         "💳 *Total a Pagar*: R$" . number_format($total, 2, ',', '.') . "\n\n" .
         "📌 *Forma de pagamento:*\n".
         "🔹 PIX: `1aebb1bd-10b7-435e-bd17-03adf4451088`\n\n" .
