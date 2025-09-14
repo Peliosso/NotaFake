@@ -419,6 +419,7 @@ if (strpos($callback_query, "qtd_") === 0) {
         "💵 Cédulas: {$dados['cedulas']}\n" .
         "🔢 Quantidade: {$usuarios[$chat_id]['quantidade']}\n" .
         "💰 Valor: R$" . number_format($preco, 2, ',', '.') . "\n" .
+        "🚛 Frete: R$" . number_format($frete, 2, ',', '.') . "\n" . 
        (!empty($usuarios[$chat_id]["cupom"]) 
     ? "🎟️ Desconto aplicado: {$cupons[$usuarios[$chat_id]['cupom']]['desconto']}%\n" 
     : "") .
