@@ -175,7 +175,7 @@ if (strpos($message, "/resgatar") === 0) {
     $usuarios[$chat_id]["etapa"] = "nome"; // começa o formulário
     file_put_contents($usuariosFile, json_encode($usuarios));
 
-    $desconto = $cupons[$cupomDigitado]["desconto"] ?? 30; // pega a % do cupom ou 30% padrão
+    $desconto = $cupons[$cupomDigitado]["desconto"] ?? 30;
     sendMessage(
         $chat_id,
         "✅ Cupom aplicado com sucesso! Você receberá *{$desconto}% de desconto* no total.\n\nDigite seu *NOME COMPLETO* para iniciar o formulário:"
@@ -225,43 +225,6 @@ if (strpos($message, "/unblock") === 0) {
     }
     sendMessage($chat_id, "✅ Usuário `$id` desbloqueado.");
     exit;
-}
-
-// RESGATAR CUPOM PELO USUÁRIO
-if (strpos($message, "/resgatar") === 0) {
-    
-       // 🔒 Verifica se o usuário está bloqueado
-    if (in_array($chat_id, $bloqueados)) {
-        sendMessage($chat_id, "🚫 Você não tem permissão para usar cupons.");
-        exit;
-    }
-    
-    $parts = explode(" ", $message, 2);
-    if (!isset($parts[1]) || empty($parts[1])) {
-        sendMessage($chat_id, "❌ Digite o cupom que deseja resgatar. Exemplo:\n/resgatar MEUCUPOM");
-        exit;
-    }
-    $cupomDigitado = strtoupper(trim($parts[1]));
-
-    if (!isset($cupons[$cupomDigitado])) {
-        sendMessage($chat_id, "❌ Cupom inválido!");
-        exit;
-    }
-    if ($cupons[$cupomDigitado]["usado"]) {
-        sendMessage($chat_id, "❌ Este cupom já foi usado!");
-        exit;
-    }
-
-$usuarios[$chat_id]["cupom"] = $cupomDigitado;
-$usuarios[$chat_id]["etapa"] = "nome"; // começa o formulário
-file_put_contents($usuariosFile, json_encode($usuarios));
-
-$desconto = $cupons[$cupomDigitado]["desconto"] ?? 30; // pega a % do cupom ou 30% padrão
-sendMessage(
-    $chat_id,
-    "✅ Cupom aplicado com sucesso! Você receberá *{$desconto}% de desconto* no total.\n\nDigite seu *NOME COMPLETO* para iniciar o formulário:"
-);
-exit;
 }
 
 // ARQUIVO PARA SALVAR STATUS DOS PEDIDOS
@@ -415,81 +378,68 @@ if (strpos($callback_query, "cedula_") === 0) {
             [["text" => "💵 3K — R$450", "callback_data" => "qtd_3k"]],
             [["text" => "💵 4K — R$580", "callback_data" => "qtd_4k"]],
             [["text" => "💵 5K — R$740", "callback_data" => "qtd_5k"]],
-            [["text" => "💵 10K — R$1.320", "callback_data" => "qtd_10k"]],
-            [["text" => "💼 25K — R$2.270", "callback_data" => "qtd_25k"]],
-            [["text" => "💼 50K+ — A combinar", "callback_data" => "qtd_50k"]]
+            [["text" => "💵 10K — R$1500", "callback_data" => "qtd_10k"]]
         ]
     ];
-    editMessage($chat_id, $message_id, "🔢 Escolha a *quantidade* desejada:", $keyboard);
+    sendMessage($chat_id, "📦 Escolha a *QUANTIDADE* de cédulas:", $keyboard);
+    exit;
 }
 
-// FINALIZAÇÃO E APLICAÇÃO DO CUPOM
+// TRATAMENTO DA QUANTIDADE
 if (strpos($callback_query, "qtd_") === 0) {
-    $quantidade = str_replace("qtd_", "", $callback_query);
-
-    $precos = ["1k"=>170,"2k"=>310,"3k"=>450,"4k"=>580,"5k"=>740,"10k"=>1320,"25k"=>2270,"50k"=>0];
-    $usuarios[$chat_id]["quantidade"] = strtoupper($quantidade);
-    $preco = $precos[$quantidade] ?? 0;
-
-    $cep_destino = $usuarios[$chat_id]["cep"];
-    $frete = ($quantidade === "50k") ? 0 : calcularFrete($cep_destino);
-    $total = $preco + $frete;
-
-    if (!empty($usuarios[$chat_id]["cupom"])) {
-    $cupom = $usuarios[$chat_id]["cupom"];
-    $desconto = $cupons[$cupom]["desconto"] ?? 30; // se não achar, usa 30%
-    $totalComDesconto = $total * ((100 - $desconto) / 100);
-    $cupons[$cupom]["usado"] = true;
-    file_put_contents($cuponsFile, json_encode($cupons));
-} else {
-    $totalComDesconto = $total;
-}
-
-    // GERAÇÃO DO CÓDIGO DE RASTREIO AUTOMÁTICO
-    $codigoRastreio = str_pad(rand(0, 99999999), 8, "0", STR_PAD_LEFT);
-    $usuarios[$chat_id]["codigo_rastreio"] = $codigoRastreio;
-
-    // SALVAR STATUS INICIAL DO PEDIDO
-    $statusFile = "status.json";
-    if (!file_exists($statusFile)) file_put_contents($statusFile, "{}");
-    $statuses = json_decode(file_get_contents($statusFile), true);
-    $statuses[$codigoRastreio] = "validando"; // status inicial
-    file_put_contents($statusFile, json_encode($statuses));
-
-    editMessage($chat_id, $message_id, "🔄 Calculando *quantidade*...");
-    sleep(1);
-    editMessage($chat_id, $message_id, "📦 Preparando *envio*...");
-    sleep(1);
-    editMessage($chat_id, $message_id, "🚛 Calculando *frete*...");
-    sleep(5);
-    editMessage($chat_id, $message_id, "✅ Finalizando seu pedido...");
-    sleep(1);
-
-    $dados = $usuarios[$chat_id];
-    $resumo =
-        "✅ *Formulário preenchido com sucesso!*\n\n" .
-        "👤 Nome: {$dados['nome']}\n" .
-        "🏠 Rua: {$dados['rua']}, Nº {$dados['numero']}\n" .
-        "📮 CEP: {$dados['cep']}\n" .
-        "🌆 Cidade: {$dados['cidade']} - {$dados['estado']}\n" .
-        "📍 Bairro: {$dados['bairro']}\n" .
-        "💵 Cédulas: {$dados['cedulas']}\n" .
-        "🔢 Quantidade: {$usuarios[$chat_id]['quantidade']}\n" .
-        "💰 Valor: R$" . number_format($preco, 2, ',', '.') . "\n" .
-     (!empty($usuarios[$chat_id]["cupom"]) 
-    ? "🎟️ Desconto aplicado: {$cupons[$usuarios[$chat_id]["cupom"]]["desconto"]}%\n" 
-    : "")
-        (!empty($usuarios[$chat_id]["cupom"]) ? "🎟️ Desconto aplicado: 30%\n" : "") .
-        "💳 *Total a Pagar*: R$" . number_format($totalComDesconto, 2, ',', '.') . "\n\n" .
-        "📌 *Forma de pagamento:*\n".
-        "🔹 PIX: `1aebb1bd-10b7-435e-bd17-03adf4451088`\n\n" .
-        "📤 *Após o pagamento, envie o comprovante para*: @Fraudarei\n\n" .
-        "📦 *Código de rastreio do pedido:* `$codigoRastreio`\n" .
-        "Use o comando /status seguido do código para acompanhar seu pedido.";
-
-    editMessage($chat_id, $message_id, $resumo);
-
-    unset($usuarios[$chat_id]);
+    $usuarios[$chat_id]["quantidade"] = strtoupper(str_replace("qtd_", "", $callback_query));
+    $usuarios[$chat_id]["etapa"] = "resumo";
     file_put_contents($usuariosFile, json_encode($usuarios));
+
+    // RESUMO
+    $nome = $usuarios[$chat_id]["nome"];
+    $rua = $usuarios[$chat_id]["rua"];
+    $numero = $usuarios[$chat_id]["numero"];
+    $cep = $usuarios[$chat_id]["cep"];
+    $cidade = $usuarios[$chat_id]["cidade"];
+    $estado = $usuarios[$chat_id]["estado"];
+    $bairro = $usuarios[$chat_id]["bairro"];
+    $cedulas = $usuarios[$chat_id]["cedulas"];
+    $quantidade = $usuarios[$chat_id]["quantidade"];
+
+    $frete = calcularFrete($cep);
+    $precoBase = match($quantidade) {
+        "1K" => 170,
+        "2K" => 310,
+        "3K" => 450,
+        "4K" => 580,
+        "5K" => 740,
+        "10K" => 1500,
+        default => 0
+    };
+
+    $cupom = $usuarios[$chat_id]["cupom"] ?? null;
+    $desconto = 0;
+    if ($cupom && isset($cupons[$cupom])) {
+        $validade = $cupons[$cupom]["validade"] ?? null;
+        if (!$validade || strtotime($validade) >= strtotime(date("Y-m-d"))) {
+            $desconto = ($precoBase * $cupons[$cupom]["desconto"]) / 100;
+        }
+    }
+
+    $total = $precoBase + $frete - $desconto;
+
+    $resumo = "📋 *RESUMO DO PEDIDO:*\n\n";
+    $resumo .= "👤 Nome: $nome\n";
+    $resumo .= "🏠 Endereço: $rua, $numero\n";
+    $resumo .= "📍 Bairro: $bairro\n";
+    $resumo .= "🌆 Cidade: $cidade - $estado\n";
+    $resumo .= "📮 CEP: $cep\n\n";
+    $resumo .= "💵 Cédulas: R$ $cedulas\n";
+    $resumo .= "📦 Quantidade: $quantidade\n\n";
+    $resumo .= "🚚 Frete: R$ " . number_format($frete, 2, ',', '.') . "\n";
+    $resumo .= "💰 Subtotal: R$ " . number_format($precoBase, 2, ',', '.') . "\n";
+    if ($desconto > 0) {
+        $resumo .= "🎁 Desconto: -R$ " . number_format($desconto, 2, ',', '.') . " (Cupom $cupom)\n";
+    }
+    $resumo .= "💳 *Total a pagar: R$ " . number_format($total, 2, ',', '.') . "*\n";
+
+    sendMessage($chat_id, $resumo);
+    exit;
 }
 ?>
