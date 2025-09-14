@@ -422,7 +422,6 @@ if (strpos($callback_query, "qtd_") === 0) {
        (!empty($usuarios[$chat_id]["cupom"]) 
     ? "🎟️ Desconto aplicado: {$cupons[$usuarios[$chat_id]['cupom']]['desconto']}%\n" 
     : "") .
-        (!empty($usuarios[$chat_id]["cupom"]) ? "🎟️ Desconto aplicado: 30%\n" : "") .
         "💳 *Total a Pagar*: R$" . number_format($totalComDesconto, 2, ',', '.') . "\n\n" .
         "📌 *Forma de pagamento:*\n".
         "🔹 PIX: `1aebb1bd-10b7-435e-bd17-03adf4451088`\n\n" .
