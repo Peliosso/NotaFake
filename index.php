@@ -108,21 +108,78 @@ if (strpos($message, "/gerarcupon") === 0) {
         sendMessage($chat_id, "❌ Você não tem permissão para gerar cupons.");
         exit;
     }
-    $parts = explode(" ", $message, 3);
-    if (!isset($parts[1]) || empty($parts[1]) || !isset($parts[2])) {
-        sendMessage($chat_id, "❌ Use o formato:\n/gerarcupon MEUCUPOM 25\n\n(O número é a porcentagem de desconto)");
+    $parts = explode(" ", $message, 4);
+    if (!isset($parts[1]) || empty($parts[1]) || !isset($parts[2]) || !isset($parts[3])) {
+        sendMessage($chat_id, "❌ Use o formato:\n/gerarcupon MEUCUPOM 25 2025-09-20\n\n(O último parâmetro é a data de validade AAAA-MM-DD)");
         exit;
     }
+
     $nomeCupom = strtoupper(trim($parts[1]));
     $desconto = (int)$parts[2];
+    $validade = $parts[3]; // formato AAAA-MM-DD
+
+    // Valida data
+    $dataValida = DateTime::createFromFormat("Y-m-d", $validade);
+    if (!$dataValida || $dataValida->format("Y-m-d") !== $validade) {
+        sendMessage($chat_id, "❌ Data inválida! Use o formato AAAA-MM-DD.");
+        exit;
+    }
+
     if ($desconto < 1 || $desconto > 100) {
         sendMessage($chat_id, "❌ Informe uma porcentagem entre 1 e 100.");
         exit;
     }
 
-    $cupons[$nomeCupom] = ["usado" => false, "desconto" => $desconto];
+    $cupons[$nomeCupom] = [
+        "usado" => false,
+        "desconto" => $desconto,
+        "validade" => $validade
+    ];
     file_put_contents($cuponsFile, json_encode($cupons));
-    sendMessage($chat_id, "✅ Cupom `$nomeCupom` gerado com *$desconto% de desconto*!");
+    sendMessage($chat_id, "✅ Cupom `$nomeCupom` gerado com *$desconto% de desconto*!\n📅 Válido até: $validade");
+    exit;
+}
+
+// RESGATAR CUPOM PELO USUÁRIO
+if (strpos($message, "/resgatar") === 0) {
+    if (in_array($chat_id, $bloqueados)) {
+        sendMessage($chat_id, "🚫 Você não tem permissão para usar cupons.");
+        exit;
+    }
+    
+    $parts = explode(" ", $message, 2);
+    if (!isset($parts[1]) || empty($parts[1])) {
+        sendMessage($chat_id, "❌ Digite o cupom que deseja resgatar. Exemplo:\n/resgatar MEUCUPOM");
+        exit;
+    }
+    $cupomDigitado = strtoupper(trim($parts[1]));
+
+    if (!isset($cupons[$cupomDigitado])) {
+        sendMessage($chat_id, "❌ Cupom inválido!");
+        exit;
+    }
+
+    // Verifica validade
+    $validade = $cupons[$cupomDigitado]["validade"] ?? null;
+    if ($validade && strtotime($validade) < strtotime(date("Y-m-d"))) {
+        sendMessage($chat_id, "⏰ Este cupom expirou em $validade!");
+        exit;
+    }
+
+    if ($cupons[$cupomDigitado]["usado"]) {
+        sendMessage($chat_id, "❌ Este cupom já foi usado!");
+        exit;
+    }
+
+    $usuarios[$chat_id]["cupom"] = $cupomDigitado;
+    $usuarios[$chat_id]["etapa"] = "nome"; // começa o formulário
+    file_put_contents($usuariosFile, json_encode($usuarios));
+
+    $desconto = $cupons[$cupomDigitado]["desconto"] ?? 30; // pega a % do cupom ou 30% padrão
+    sendMessage(
+        $chat_id,
+        "✅ Cupom aplicado com sucesso! Você receberá *{$desconto}% de desconto* no total.\n\nDigite seu *NOME COMPLETO* para iniciar o formulário:"
+    );
     exit;
 }
 
