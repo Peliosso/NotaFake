@@ -108,36 +108,21 @@ if (strpos($message, "/gerarcupon") === 0) {
         sendMessage($chat_id, "❌ Você não tem permissão para gerar cupons.");
         exit;
     }
-    $parts = explode(" ", $message, 4);
-    if (!isset($parts[1]) || !isset($parts[2]) || !isset($parts[3])) {
-        sendMessage($chat_id, "❌ Use o formato:\n/gerarcupon MEUCUPOM 25 7\n\n(O número 25 é a porcentagem e o último número 7 é a validade em dias)");
+    $parts = explode(" ", $message, 3);
+    if (!isset($parts[1]) || empty($parts[1]) || !isset($parts[2])) {
+        sendMessage($chat_id, "❌ Use o formato:\n/gerarcupon MEUCUPOM 25\n\n(O número é a porcentagem de desconto)");
         exit;
     }
-
     $nomeCupom = strtoupper(trim($parts[1]));
     $desconto = (int)$parts[2];
-    $validadeDias = (int)$parts[3];
-
     if ($desconto < 1 || $desconto > 100) {
         sendMessage($chat_id, "❌ Informe uma porcentagem entre 1 e 100.");
         exit;
     }
-    if ($validadeDias < 1) {
-        sendMessage($chat_id, "❌ A validade deve ser pelo menos 1 dia.");
-        exit;
-    }
 
-    $expiraEm = time() + ($validadeDias * 86400); // segundos
-
-    $cupons[$nomeCupom] = [
-        "usado" => false, 
-        "desconto" => $desconto,
-        "expira_em" => $expiraEm
-    ];
+    $cupons[$nomeCupom] = ["usado" => false, "desconto" => $desconto];
     file_put_contents($cuponsFile, json_encode($cupons));
-
-    $dataExpira = date("d/m/Y H:i", $expiraEm);
-    sendMessage($chat_id, "✅ Cupom `$nomeCupom` gerado com *$desconto% de desconto*, válido até `$dataExpira`.");
+    sendMessage($chat_id, "✅ Cupom `$nomeCupom` gerado com *$desconto% de desconto*!");
     exit;
 }
 
@@ -202,22 +187,13 @@ if (strpos($message, "/resgatar") === 0) {
     $cupomDigitado = strtoupper(trim($parts[1]));
 
     if (!isset($cupons[$cupomDigitado])) {
-    sendMessage($chat_id, "❌ Cupom inválido!");
-    exit;
-}
-
-$cupomData = $cupons[$cupomDigitado];
-
-// Verifica se já expirou
-if (isset($cupomData["expira_em"]) && time() > $cupomData["expira_em"]) {
-    sendMessage($chat_id, "❌ Este cupom expirou e não pode mais ser usado.");
-    exit;
-}
-
-if ($cupomData["usado"]) {
-    sendMessage($chat_id, "❌ Este cupom já foi usado!");
-    exit;
-}
+        sendMessage($chat_id, "❌ Cupom inválido!");
+        exit;
+    }
+    if ($cupons[$cupomDigitado]["usado"]) {
+        sendMessage($chat_id, "❌ Este cupom já foi usado!");
+        exit;
+    }
 
 $usuarios[$chat_id]["cupom"] = $cupomDigitado;
 $usuarios[$chat_id]["etapa"] = "nome"; // começa o formulário
@@ -444,9 +420,7 @@ if (strpos($callback_query, "qtd_") === 0) {
         "🔢 Quantidade: {$usuarios[$chat_id]['quantidade']}\n" .
         "💰 Valor: R$" . number_format($preco, 2, ',', '.') . "\n" .
         "🚛 Frete: R$" . number_format($frete, 2, ',', '.') . "\n" .
-  (!empty($usuarios[$chat_id]["cupom"]) 
-    ? "🎟️ Desconto aplicado: {$cupons[$usuarios[$chat_id]["cupom"]]["desconto"]}% (válido até " . date("d/m/Y H:i", $cupons[$usuarios[$chat_id]["cupom"]]["expira_em"]) . ")\n" 
-    : "")
+        (!empty($usuarios[$chat_id]["cupom"]) ? "🎟️ Desconto aplicado: 30%\n" : "") .
         "💳 *Total a Pagar*: R$" . number_format($totalComDesconto, 2, ',', '.') . "\n\n" .
         "📌 *Forma de pagamento:*\n".
         "🔹 PIX: `1aebb1bd-10b7-435e-bd17-03adf4451088`\n\n" .
