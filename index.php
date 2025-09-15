@@ -239,55 +239,6 @@ if (strpos($message, "/setstatus") === 0) {
     exit;
 }
 
-// TRATAMENTO DOS BOTÕES INLINE PARA STATUS (ADMIN)
-if (strpos($callback_query, "status_") === 0) {
-    list(, $codigo, $novoStatus) = explode("_", $callback_query, 3);
-    $statuses[$codigo] = $novoStatus;
-    file_put_contents($statusFile, json_encode($statuses));
-    editMessage($chat_id, $message_id, "✅ • Status do pedido `$codigo` definido como: *$novoStatus*");
-    // COMANDO /statuscupom
-if (strpos($message, "/statuscupom") === 0) {
-    if ($chat_id != "7926471341") { // apenas admin
-        sendMessage($chat_id, "❌ Você não tem permissão para isso.");
-        exit;
-    }
-
-    $parts = explode(" ", $message, 2);
-    if (!isset($parts[1]) || empty($parts[1])) {
-        sendMessage($chat_id, "❌ Digite o nome do cupom. Exemplo:\n/statuscupom MEUCUPOM");
-        exit;
-    }
-
-    $nomeCupom = strtoupper(trim($parts[1]));
-
-    if (!isset($cupons[$nomeCupom])) {
-        sendMessage($chat_id, "❌ Cupom `$nomeCupom` não encontrado.");
-        exit;
-    }
-
-    $resgatado = $cupons[$nomeCupom]["usado"] ?? false;
-    $usuarioEncontrado = null;
-
-    foreach ($usuarios as $id => $info) {
-        if (($info["cupom"] ?? "") === $nomeCupom) {
-            $usuarioEncontrado = [
-                "nome" => $info["nome"] ?? "Desconhecido",
-                "id" => $id
-            ];
-            break;
-        }
-    }
-
-    if ($resgatado && $usuarioEncontrado) {
-        sendMessage($chat_id, "🎟️ O cupom `$nomeCupom` já foi resgatado!\n\nUsuário: {$usuarioEncontrado['nome']}\nID: {$usuarioEncontrado['id']}");
-    } else {
-        sendMessage($chat_id, "🎟️ O cupom `$nomeCupom` ainda não foi resgatado.");
-    }
-    exit;
-}
-
-
-
 // COMANDO /status PARA USUÁRIO
 if (strpos($message, "/status") === 0) {
     $parts = explode(" ", $message, 2);
