@@ -81,7 +81,50 @@ function calcularFrete($cep_destino, $peso = 1) {
 
 // COMANDO /start
 if ($message == "/start") {
-    sendMessage($chat_id, "🎭 *Bem-vindo ao Joker NF!*\n\nDigite */comprar* para iniciar o formulário.\nPara mais detalhes sobre as notas, use */info*.");
+    $keyboard = [
+        "inline_keyboard" => [
+            [["text" => "🛒 • Comprar NF", "callback_data" => "cmd_comprar"]],
+            [["text" => "ℹ️ • Info", "callback_data" => "cmd_info"]],
+            [["text" => "☎️ • Chip", "callback_data" => "cmd_chip"]]
+        ]
+    ];
+
+    sendMessage($chat_id, "🎭 *Bem-vindo ao Joker NF!*\n\nEscolha uma das opções abaixo:", $keyboard);
+    exit;
+}
+
+// --- TRATAMENTO CALLBACK DO /start ---
+if ($callback_query == "cmd_comprar") {
+    sendMessage($chat_id, "🛒 Use o comando */comprar* para iniciar o formulário.");
+    exit;
+}
+
+if ($callback_query == "cmd_info") {
+    sendMessage($chat_id,
+        "🔒 *DETALHES TÉCNICOS DAS NOTAS:*\n\n".
+        "✅ Fita preta real (original)\n".
+        "✅ Marca d’água legítima\n".
+        "✅ Holográfico\n".
+        "✅ Papel texturizado de alta gramatura\n".
+        "✅ Tamanho exato das cédulas verdadeiras\n".
+        "✅ Reage à luz UV (negativo e positivo)\n".
+        "✅ Fibras UV embutidas na cédula\n".
+        "✅ Passa em teste com caneta detectora\n\n".
+        "🫡 Referência: @Jokermetodosfree"
+    );
+    exit;
+}
+
+if ($callback_query == "cmd_chip") {
+    $keyboard = [
+        "inline_keyboard" => [
+            [["text" => "⛱️ • RJ", "callback_data" => "chip_RJ"]],
+            [["text" => "🧀 • MG", "callback_data" => "chip_MG"]],
+            [["text" => "☂️ • SP", "callback_data" => "chip_SP"]],
+            [["text" => "🌎 • Outros", "callback_data" => "chip_Outros"]]
+        ]
+    ];
+    sendMessage($chat_id, "📶 Escolha o *estado* para o chip:", $keyboard);
     exit;
 }
 
