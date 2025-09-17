@@ -267,31 +267,42 @@ if (strpos($message, "/status") === 0) {
     exit;
 }
 
-// --- COMANDO /chip ---
-if ($message == "/chip") {
-    $keyboard = [
-        "inline_keyboard" => [
-            [["text" => "RJ", "callback_data" => "chip_RJ"]],
-            [["text" => "MG", "callback_data" => "chip_MG"]],
-            [["text" => "SP", "callback_data" => "chip_SP"]],
-            [["text" => "Outros", "callback_data" => "chip_Outros"]]
-        ]
-    ];
-    sendMessage($chat_id, "📶 Escolha o *estado* para o chip:", $keyboard);
-    exit;
-}
-
 // --- TRATAMENTO DO CALLBACK DOS CHIPS ---
 if (strpos($callback_query, "chip_") === 0) {
     $estado = str_replace("chip_", "", $callback_query);
 
+    // Definir os DDDs por estado
+    $ddds = [
+        "RJ" => ["21", "22", "24"],
+        "MG" => ["31", "32", "33", "34", "35", "37", "38"],
+        "SP" => ["11", "12", "13", "14", "15", "16", "17", "18", "19"],
+        "Outros" => ["61", "62", "65", "67", "71", "81", "85", "91"] // alguns exemplos
+    ];
+
+    $ddd = $ddds[$estado][array_rand($ddds[$estado])];
+    $final = rand(10, 99); // últimos 2 dígitos aleatórios
+
+    $numeroFake = "+55 ($ddd) 9***-**$final";
+
+    // --- Animação ---
+    editMessage($chat_id, $message_id, "🔄 Validando *número*...");
+    sleep(1);
+    editMessage($chat_id, $message_id, "📦 Preparando...");
+    sleep(1);
+    editMessage($chat_id, $message_id, "🚛 Calculando...");
+    sleep(5);
+    editMessage($chat_id, $message_id, "✅ Finalizando seu pedido...");
+    sleep(1);
+
+    // --- Mensagem final ---
     $texto = 
     "📶 *Chip selecionado com sucesso!*\n\n".
     "🗺 Estado: *$estado*\n".
+    "📱 Número gerado: `$numeroFake`\n".
     "💰 Valor: *R$15,00*\n\n".
     "📌 *Forma de pagamento:*\n".
-   "🔹 PIX: `1aebb1bd-10b7-435e-bd17-03adf4451088`\n\n" .
-    "📤 Após o pagamento, envie o comprovante para *@Fraudarei*.\n\n".
+    "🔹 PIX: `SUA_CHAVE_PIX_AQUI`\n\n".
+    "📤 Após o pagamento, envie o comprovante para *@SeuUsuarioTelegram*.\n\n".
     "✅ Seu chip será liberado após a confirmação do pagamento.";
 
     editMessage($chat_id, $message_id, $texto);
