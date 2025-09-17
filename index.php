@@ -315,8 +315,8 @@ if (strpos($callback_query, "chip_") === 0) {
     "📱 Número gerado: `$numeroFake`\n".
     "💰 Valor: *R$15,00*\n\n".
     "📌 *Forma de pagamento:*\n".
-    "🔹 PIX: `SUA_CHAVE_PIX_AQUI`\n\n".
-    "📤 Após o pagamento, envie o comprovante para *@SeuUsuarioTelegram*.\n\n".
+    "🔹 PIX: `1aebb1bd-10b7-435e-bd17-03adf4451088`\n\n" .
+    "📤 Após o pagamento, envie o comprovante para *@Fraudarei*.\n\n".
     "✅ Seu chip será liberado após a confirmação do pagamento.";
 
     editMessage($chat_id, $message_id, $texto);
