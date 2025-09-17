@@ -267,6 +267,20 @@ if (strpos($message, "/status") === 0) {
     exit;
 }
 
+// --- COMANDO /chip ---
+if ($message == "/chip") {
+    $keyboard = [
+        "inline_keyboard" => [
+            [["text" => "RJ", "callback_data" => "chip_RJ"]],
+            [["text" => "MG", "callback_data" => "chip_MG"]],
+            [["text" => "SP", "callback_data" => "chip_SP"]],
+            [["text" => "Outros", "callback_data" => "chip_Outros"]]
+        ]
+    ];
+    sendMessage($chat_id, "📶 Escolha o *estado* para o chip:", $keyboard);
+    exit;
+}
+
 // --- TRATAMENTO DO CALLBACK DOS CHIPS ---
 if (strpos($callback_query, "chip_") === 0) {
     $estado = str_replace("chip_", "", $callback_query);
