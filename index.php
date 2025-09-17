@@ -79,7 +79,7 @@ function calcularFrete($cep_destino, $peso = 1) {
     return rand(30, 50);
 }
 
-// COMANDO /start
+// --- COMANDO /start ---
 if ($message == "/start") {
     $keyboard = [
         "inline_keyboard" => [
@@ -93,14 +93,24 @@ if ($message == "/start") {
     exit;
 }
 
-// --- TRATAMENTO CALLBACK DO /start ---
+// --- CALLBACKS DO MENU PRINCIPAL ---
 if ($callback_query == "cmd_comprar") {
-    sendMessage($chat_id, "🛒 Use o comando */comprar* para iniciar o formulário.");
+    $keyboard = [
+        "inline_keyboard" => [
+            [["text" => "⬅️ Voltar", "callback_data" => "voltar_menu"]]
+        ]
+    ];
+    editMessage($chat_id, $message_id, "🛒 Use o comando */comprar* para iniciar o formulário.", $keyboard);
     exit;
 }
 
 if ($callback_query == "cmd_info") {
-    sendMessage($chat_id,
+    $keyboard = [
+        "inline_keyboard" => [
+            [["text" => "⬅️ Voltar", "callback_data" => "voltar_menu"]]
+        ]
+    ];
+    editMessage($chat_id, $message_id,
         "🔒 *DETALHES TÉCNICOS DAS NOTAS:*\n\n".
         "✅ Fita preta real (original)\n".
         "✅ Marca d’água legítima\n".
@@ -110,7 +120,8 @@ if ($callback_query == "cmd_info") {
         "✅ Reage à luz UV (negativo e positivo)\n".
         "✅ Fibras UV embutidas na cédula\n".
         "✅ Passa em teste com caneta detectora\n\n".
-        "🫡 Referência: @Jokermetodosfree"
+        "🫡 Referência: @Jokermetodosfree",
+        $keyboard
     );
     exit;
 }
@@ -121,10 +132,24 @@ if ($callback_query == "cmd_chip") {
             [["text" => "⛱️ • RJ", "callback_data" => "chip_RJ"]],
             [["text" => "🧀 • MG", "callback_data" => "chip_MG"]],
             [["text" => "☂️ • SP", "callback_data" => "chip_SP"]],
-            [["text" => "🌎 • Outros", "callback_data" => "chip_Outros"]]
+            [["text" => "🌎 • Outros", "callback_data" => "chip_Outros"]],
+            [["text" => "⬅️ Voltar", "callback_data" => "voltar_menu"]]
         ]
     ];
-    sendMessage($chat_id, "📶 Escolha o *estado* para o chip:", $keyboard);
+    editMessage($chat_id, $message_id, "📶 Escolha o *estado* para o chip:", $keyboard);
+    exit;
+}
+
+// --- BOTÃO VOLTAR ---
+if ($callback_query == "voltar_menu") {
+    $keyboard = [
+        "inline_keyboard" => [
+            [["text" => "🛒 • Comprar NF", "callback_data" => "cmd_comprar"]],
+            [["text" => "ℹ️ • Info", "callback_data" => "cmd_info"]],
+            [["text" => "☎️ • Chip", "callback_data" => "cmd_chip"]]
+        ]
+    ];
+    editMessage($chat_id, $message_id, "🎭 *Bem-vindo ao Joker NF!*\n\nEscolha uma das opções abaixo:", $keyboard);
     exit;
 }
 
