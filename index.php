@@ -104,7 +104,7 @@ if ($message == "/info") {
 
 // GERAR CUPOM (SOMENTE VOCÊ)
 if (strpos($message, "/gerarcupon") === 0) {
-    if ($chat_id != "7926471341") {
+    if ($chat_id != "7926471347") {
         sendMessage($chat_id, "❌ Você não tem permissão para gerar cupons.");
         exit;
     }
