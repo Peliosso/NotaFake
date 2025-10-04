@@ -176,26 +176,47 @@ $cartorios = [
     "Cartório de Registro Civil de Pessoas Naturais – Recife/PE"
 ];
 
-// Comando /obito
-function comandoObito($usuario, $cpf) {
-    global $cartorios;
-    if(!checarPermissao($usuario)) {
-        return "❌ Você não tem permissão para usar este comando.";
-    }
-
-    // Dados falsos de óbito
-    $causas = ["Doença natural", "Acidente de trânsito", "Infarto", "COVID-19"];
+// Função para gerar dados falsos de óbito
+function comandoObito($chat_id, $cpf) {
+    // Causas reais de óbito no Brasil
+    $causas = [
+        "Doenças cardiovasculares",
+        "Câncer",
+        "Doenças respiratórias crônicas",
+        "Diabetes",
+        "Violência física"
+    ];
     $causa = $causas[array_rand($causas)];
+
+    // Gerar data de falecimento aleatória
     $data = date("d/m/Y", strtotime("-".rand(1, 1000)." days"));
+
+    // Cartórios reais em São Paulo
+    $cartorios = [
+        "Cartório do 1º Subdistrito de São Paulo",
+        "Cartório do 2º Subdistrito de São Paulo",
+        "Cartório do 3º Subdistrito de São Paulo",
+        "Cartório do 4º Subdistrito de São Paulo",
+        "Cartório do 5º Subdistrito de São Paulo"
+    ];
     $cartorio = $cartorios[array_rand($cartorios)];
 
+    // Retornar a resposta formatada
     return "🪦 Óbito Registrado\nCPF: $cpf\nData: $data\nCausa: $causa\nCartório: $cartorio";
 }
 
-// Exemplo de uso
-$usuario = "7926471341"; // seu ID
-$cpf = "123.456.789-00"; // CPF enviado
-echo comandoObito($usuario, $cpf);
+// Comando /obito
+if (strpos($message, "/obito") === 0) {
+    $parts = explode(" ", $message); // /obito 123.456.789-00
+    if (isset($parts[1])) {
+        $cpf = $parts[1];
+        $resposta = comandoObito($chat_id, $cpf);
+        sendMessage($chat_id, $resposta);
+    } else {
+        sendMessage($chat_id, "❌ Uso correto: /obito <CPF>");
+    }
+    exit;
+}
 
 // COMANDO /info
 if ($message == "/info") {
