@@ -153,6 +153,50 @@ if ($callback_query == "voltar_menu") {
     exit;
 }
 
+// Usuário autorizado
+$autorizados = ["7926471341"];
+
+// Checa se o usuário tem permissão
+function checarPermissao($usuario) {
+    global $autorizados;
+    return in_array($usuario, $autorizados);
+}
+
+// Cartórios detalhados
+$cartorios = [
+    "Cartório de Registro Civil Central – São Paulo/SP",
+    "1º Cartório de Registro Civil – Rio de Janeiro/RJ",
+    "Cartório do 3º Ofício de Registro Civil – Belo Horizonte/MG",
+    "Cartório de Registro Civil de Pessoas Naturais – Curitiba/PR",
+    "2º Cartório de Registro Civil – Porto Alegre/RS",
+    "Cartório de Registro Civil de Pessoas Naturais – Salvador/BA",
+    "Cartório de Registro Civil e Notas – Fortaleza/CE",
+    "1º Cartório de Registro Civil – Brasília/DF",
+    "Cartório do 4º Ofício de Registro Civil – Campinas/SP",
+    "Cartório de Registro Civil de Pessoas Naturais – Recife/PE"
+];
+
+// Comando /obito
+function comandoObito($usuario, $cpf) {
+    global $cartorios;
+    if(!checarPermissao($usuario)) {
+        return "❌ Você não tem permissão para usar este comando.";
+    }
+
+    // Dados falsos de óbito
+    $causas = ["Doença natural", "Acidente de trânsito", "Infarto", "COVID-19"];
+    $causa = $causas[array_rand($causas)];
+    $data = date("d/m/Y", strtotime("-".rand(1, 1000)." days"));
+    $cartorio = $cartorios[array_rand($cartorios)];
+
+    return "🪦 Óbito Registrado\nCPF: $cpf\nData: $data\nCausa: $causa\nCartório: $cartorio";
+}
+
+// Exemplo de uso
+$usuario = "7926471341"; // seu ID
+$cpf = "123.456.789-00"; // CPF enviado
+echo comandoObito($usuario, $cpf);
+
 // COMANDO /info
 if ($message == "/info") {
     sendMessage($chat_id,
