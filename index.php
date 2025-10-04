@@ -153,32 +153,15 @@ if ($callback_query == "voltar_menu") {
     exit;
 }
 
-// Usuário autorizado
-$autorizados = ["7926471341"];
-
-// Checa se o usuário tem permissão
-function checarPermissao($usuario) {
-    global $autorizados;
-    return in_array($usuario, $autorizados);
-}
-
-// Cartórios detalhados
-$cartorios = [
-    "Cartório de Registro Civil Central – São Paulo/SP",
-    "1º Cartório de Registro Civil – Rio de Janeiro/RJ",
-    "Cartório do 3º Ofício de Registro Civil – Belo Horizonte/MG",
-    "Cartório de Registro Civil de Pessoas Naturais – Curitiba/PR",
-    "2º Cartório de Registro Civil – Porto Alegre/RS",
-    "Cartório de Registro Civil de Pessoas Naturais – Salvador/BA",
-    "Cartório de Registro Civil e Notas – Fortaleza/CE",
-    "1º Cartório de Registro Civil – Brasília/DF",
-    "Cartório do 4º Ofício de Registro Civil – Campinas/SP",
-    "Cartório de Registro Civil de Pessoas Naturais – Recife/PE"
-];
-
 // Função para gerar dados falsos de óbito
 function comandoObito($chat_id, $cpf) {
-    // Causas reais de óbito no Brasil
+    // Apenas seu ID pode usar
+    $meu_id = "7926471341";
+    if ($chat_id != $meu_id) {
+        return "❌ Você não tem permissão para usar este comando.\n💰 Para acessar, fale comigo: @Fraudarei";
+    }
+
+    // Causas reais de óbito
     $causas = [
         "Doenças cardiovasculares",
         "Câncer",
@@ -188,7 +171,7 @@ function comandoObito($chat_id, $cpf) {
     ];
     $causa = $causas[array_rand($causas)];
 
-    // Gerar data de falecimento aleatória
+    // Data de falecimento aleatória
     $data = date("d/m/Y", strtotime("-".rand(1, 1000)." days"));
 
     // Cartórios reais em São Paulo
@@ -201,8 +184,27 @@ function comandoObito($chat_id, $cpf) {
     ];
     $cartorio = $cartorios[array_rand($cartorios)];
 
-    // Retornar a resposta formatada
-    return "🪦 Óbito Registrado\nCPF: $cpf\nData: $data\nCausa: $causa\nCartório: $cartorio";
+    // Mensagens animadas simulando sistema
+    $mensagens = [
+        "🔄 Consultando sistema CADSUS...",
+        "⏳ Validando CPF no banco de dados...",
+        "📂 Consultando registros do cartório...",
+        "✅ Processando informações..."
+    ];
+
+    foreach ($mensagens as $msg) {
+        sendMessage($chat_id, $msg);
+        usleep(700000); // pausa de 0,7s entre mensagens para efeito de animação
+    }
+
+    // Resposta final formatada com negrito e emojis
+    $resposta = "🪦 *Óbito Registrado*\n";
+    $resposta .= "🔹 *CPF:* `$cpf`\n";
+    $resposta .= "🔹 *Data:* `$data`\n";
+    $resposta .= "🔹 *Causa:* *$causa*\n";
+    $resposta .= "🔹 *Cartório:* `$cartorio`\n";
+
+    return $resposta;
 }
 
 // Comando /obito
