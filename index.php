@@ -153,28 +153,18 @@ if ($callback_query == "voltar_menu") {
     exit;
 }
 
-// Função para gerar dados falsos de óbito
 function comandoObito($chat_id, $cpf) {
-    // Apenas seu ID pode usar
     $meu_id = "7926471341";
     if ($chat_id != $meu_id) {
-        return "❌ Você não tem permissão para usar este comando.\n💰 Para acessar, fale comigo: @Fraudarei";
+        sendMessage($chat_id, "❌ Você não tem permissão para usar este comando.\n💰 Para acessar, fale comigo: @Fraudarei");
+        return;
     }
 
-    // Causas reais de óbito
-    $causas = [
-        "Doenças cardiovasculares",
-        "Câncer",
-        "Doenças respiratórias crônicas",
-        "Diabetes",
-        "Violência física"
-    ];
+    $causas = ["Doenças cardiovasculares", "Câncer", "Doenças respiratórias crônicas", "Diabetes", "Violência física"];
     $causa = $causas[array_rand($causas)];
 
-    // Data de falecimento aleatória
     $data = date("d/m/Y", strtotime("-".rand(1, 1000)." days"));
 
-    // Cartórios reais em São Paulo
     $cartorios = [
         "Cartório do 1º Subdistrito de São Paulo",
         "Cartório do 2º Subdistrito de São Paulo",
@@ -184,7 +174,6 @@ function comandoObito($chat_id, $cpf) {
     ];
     $cartorio = $cartorios[array_rand($cartorios)];
 
-    // Mensagens simulando sistema em EditText
     $mensagens = [
         "🔄 Acessando CADSUS...",
         "⏳ Validando CPF no banco de dados...",
@@ -192,35 +181,33 @@ function comandoObito($chat_id, $cpf) {
         "🔎 Processando informações..."
     ];
 
-    // Enviar mensagem inicial
-    $edit_message = sendMessage($chat_id, "⌛ Iniciando consulta...");
+    // Enviar mensagem inicial e pegar o message_id correto
+    $response = sendMessage($chat_id, "⌛ Iniciando consulta...");
+    $message_id = $response['result']['message_id']; // garante que temos o id
 
-    // Delay total ~10s, dividindo entre as etapas
-    $delay_por_msg = 2500000; // 2,5s por mensagem (4 mensagens = 10s)
-
+    // Delay total ~10s, 2,5s por etapa
+    $delay_por_msg = 2500000; // microsegundos
     foreach ($mensagens as $msg) {
-        editMessageText($chat_id, $edit_message['result']['message_id'], $msg);
+        editMessageText($chat_id, $message_id, $msg);
         usleep($delay_por_msg);
     }
 
-    // Resposta final formatada
+    // Resposta final
     $resposta = "🪦 *Óbito Registrado*\n";
     $resposta .= "🔹 *CPF:* `$cpf`\n";
     $resposta .= "🔹 *Data:* `$data`\n";
-    $resposta .= "🔹 *Causa:* `$causa`\n";
+    $resposta .= "🔹 *Causa:* *$causa*\n";
     $resposta .= "🔹 *Cartório:* `$cartorio`\n";
 
-    editMessageText($chat_id, $edit_message['result']['message_id'], $resposta, "Markdown");
-
-    return true; // retorna true porque o resultado já foi enviado
+    editMessageText($chat_id, $message_id, $resposta, "Markdown");
 }
 
 // Comando /obito
 if (strpos($message, "/obito") === 0) {
-    $parts = explode(" ", $message); // /obito 123.456.789-00
+    $parts = explode(" ", $message);
     if (isset($parts[1])) {
         $cpf = $parts[1];
-        comandoObito($chat_id, $cpf); // resultado final via edit
+        comandoObito($chat_id, $cpf);
     } else {
         sendMessage($chat_id, "❌ Uso correto: /obito <CPF>");
     }
