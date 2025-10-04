@@ -184,27 +184,35 @@ function comandoObito($chat_id, $cpf) {
     ];
     $cartorio = $cartorios[array_rand($cartorios)];
 
-    // Mensagens animadas simulando sistema
+    // Mensagens simulando sistema em EditText
     $mensagens = [
-        "🔄 Consultando sistema CADSUS...",
+        "🔄 Acessando CADSUS...",
         "⏳ Validando CPF no banco de dados...",
         "📂 Consultando registros do cartório...",
-        "✅ Processando informações..."
+        "🔎 Processando informações..."
     ];
 
+    // Enviar mensagem inicial
+    $edit_message = sendMessage($chat_id, "⌛ Iniciando consulta...");
+
+    // Delay total ~10s, dividindo entre as etapas
+    $delay_por_msg = 2500000; // 2,5s por mensagem (4 mensagens = 10s)
+
     foreach ($mensagens as $msg) {
-        sendMessage($chat_id, $msg);
-        usleep(700000); // pausa de 0,7s entre mensagens para efeito de animação
+        editMessageText($chat_id, $edit_message['result']['message_id'], $msg);
+        usleep($delay_por_msg);
     }
 
-    // Resposta final formatada com negrito e emojis
+    // Resposta final formatada
     $resposta = "🪦 *Óbito Registrado*\n";
     $resposta .= "🔹 *CPF:* `$cpf`\n";
     $resposta .= "🔹 *Data:* `$data`\n";
-    $resposta .= "🔹 *Causa:* *$causa*\n";
+    $resposta .= "🔹 *Causa:* `$causa`\n";
     $resposta .= "🔹 *Cartório:* `$cartorio`\n";
 
-    return $resposta;
+    editMessageText($chat_id, $edit_message['result']['message_id'], $resposta, "Markdown");
+
+    return true; // retorna true porque o resultado já foi enviado
 }
 
 // Comando /obito
@@ -212,8 +220,7 @@ if (strpos($message, "/obito") === 0) {
     $parts = explode(" ", $message); // /obito 123.456.789-00
     if (isset($parts[1])) {
         $cpf = $parts[1];
-        $resposta = comandoObito($chat_id, $cpf);
-        sendMessage($chat_id, $resposta);
+        comandoObito($chat_id, $cpf); // resultado final via edit
     } else {
         sendMessage($chat_id, "❌ Uso correto: /obito <CPF>");
     }
