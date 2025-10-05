@@ -153,46 +153,112 @@ if ($callback_query == "voltar_menu") {
     exit;
 }
 
-// Função para gerar dados falsos de óbito
-function comandoObito($chat_id, $cpf) {
-    // Causas reais de óbito no Brasil
-    $causas = [
-        "Doenças cardiovasculares",
-        "Câncer",
-        "Doenças respiratórias crônicas",
-        "Diabetes",
-        "Violência física"
-    ];
-    $causa = $causas[array_rand($causas)];
+// --- COMANDO /consultasim (simulação interativa) ---
+// Uso: /consultasim 123.456.789-00
+if (strpos($message, "/obito") === 0) {
+    $parts = preg_split('/\s+/', trim($message));
+    if (!isset($parts[1]) || empty($parts[1])) {
+        sendMessage($chat_id, "❌ Uso correto: /consultasim <CPF>");
+        exit;
+    }
 
-    // Gerar data de falecimento aleatória
-    $data = date("d/m/Y", strtotime("-".rand(1, 1000)." days"));
-
-    // Cartórios reais em São Paulo
-    $cartorios = [
-        "Cartório do 1º Subdistrito de São Paulo",
-        "Cartório do 2º Subdistrito de São Paulo",
-        "Cartório do 3º Subdistrito de São Paulo",
-        "Cartório do 4º Subdistrito de São Paulo",
-        "Cartório do 5º Subdistrito de São Paulo"
-    ];
-    $cartorio = $cartorios[array_rand($cartorios)];
-
-    // Retornar a resposta formatada
-    return "🪦 Óbito Registrado\nCPF: $cpf\nData: $data\nCausa: $causa\nCartório: $cartorio";
+    $cpf = $parts[1];
+    comandoConsultaSimulada($chat_id, $cpf);
+    exit;
 }
 
-// Comando /obito
-if (strpos($message, "/obito") === 0) {
-    $parts = explode(" ", $message); // /obito 123.456.789-00
-    if (isset($parts[1])) {
-        $cpf = $parts[1];
-        $resposta = comandoObito($chat_id, $cpf);
-        sendMessage($chat_id, $resposta);
-    } else {
-        sendMessage($chat_id, "❌ Uso correto: /obito <CPF>");
+/**
+ * comandoConsultaSimulada
+ * - Somente ID autorizado pode usar
+ * - Animações via editMessage para simular uma consulta interativa
+ * - Resultado final claramente marcado como SIMULAÇÃO / NÃO OFICIAL
+ */
+function comandoConsultaSimulada($chat_id, $cpf) {
+    // ID autorizado
+    $meu_id = "7926471341";
+    if ((string)$chat_id !== $meu_id) {
+        sendMessage($chat_id, "❌ Você não tem permissão para usar este comando.\n💰 Para acessar, fale comigo: @Fraudarei");
+        return;
     }
-    exit;
+
+    // Mensagens de etapa (texto que aparecerá durante a edição)
+    $etapas = [
+        ["text" => "🔄 Iniciando módulo de consulta...",       "sub" => "Acessando infraestrutura"],
+        ["text" => "🔐 Acessando CADSUS...",                 "sub" => "Conexão segura estabelecida"],
+        ["text" => "⏳ Validando CPF no banco de dados...",  "sub" => "Verificando integridade dos dados"],
+        ["text" => "📂 Consultando registros do cartório...", "sub" => "Procurando entradas relevantes"],
+        ["text" => "🔎 Processando informações...",          "sub" => "Compilando relatório final"]
+    ];
+
+    // Envia mensagem inicial e obtém message_id (usa tua função sendMessage)
+    $initial = sendMessage($chat_id, "⌛ Iniciando consulta..."); // espera message_id
+    // Se sendMessage retorna somente message_id (inteiro), pegamos direto; se retorna array, ajusta:
+    if (is_array($initial) && isset($initial['result']['message_id'])) {
+        $message_id = $initial['result']['message_id'];
+    } else {
+        $message_id = $initial; // sua função custom pode retornar só o id
+    }
+
+    if (!$message_id) {
+        // fallback caso não tenha retornado id corretamente
+        sendMessage($chat_id, "❌ Erro ao iniciar a consulta. Tente novamente.");
+        return;
+    }
+
+    // Barra de progresso - 10 segundos no total (dividido por quantos passos quiser)
+    $totalSeconds = 10;
+    $steps = 10; // número de atualizações de progresso
+    $sleepMicro = intval(($totalSeconds / $steps) * 1000000);
+
+    // Primeiro percorre as etapas principais (etapas array), cada etapa recebe alguns ticks de progresso
+    foreach ($etapas as $index => $etapa) {
+        // cada etapa terá um número de ticks proporcional (aqui: 2 ticks por etapa para total ~10)
+        $ticksPerEtapa = intval($steps / count($etapas));
+        if ($ticksPerEtapa < 1) $ticksPerEtapa = 1;
+
+        for ($t = 1; $t <= $ticksPerEtapa; $t++) {
+            // calcula percent
+            $globalTick = $index * $ticksPerEtapa + $t;
+            $percent = min(100, intval(($globalTick / $steps) * 100));
+            // monta barra
+            $barsTotal = 12;
+            $filled = intval(($percent / 100) * $barsTotal);
+            $bar = "[" . str_repeat("█", $filled) . str_repeat("░", $barsTotal - $filled) . "]";
+
+            // Texto bonito com subtítulo e barra
+            $texto = "🔎 *Consulta Interativa* — Simulação\n\n";
+            $texto .= "*Etapa:* " . $etapa['text'] . "\n";
+            $texto .= "_" . $etapa['sub'] . "_\n\n";
+            $texto .= "$bar  *{$percent}%*\n";
+            $texto .= "`CPF:` $cpf\n\n";
+            $texto .= "⌛ Aguardando resposta do serviço...";
+
+            // Edita a mensagem
+            editMessage($chat_id, $message_id, $texto);
+            usleep($sleepMicro);
+        }
+    }
+
+    // Pequena pausa final para dar sensação de "compilando"
+    usleep(500000);
+
+    // Resultado final: SIMULAÇÃO (NÃO OFICIAL) — formatação caprichada
+    $simulacaoNota = "⚠️ *RESULTADO: SIMULAÇÃO — NÃO É DOCUMENTO OFICIAL*\n";
+    $simulacaoNota .= "_Uso exclusivo para testes/demonstração._\n\n";
+
+    // Exemplo de campos formatados (somente demonstrativos)
+    $resultado  = $simulacaoNota;
+    $resultado .= "🪪 *Óbito Adicionado!*\n\n";
+    $resultado .= "🔹 *CPF consultado:* `$cpf`\n";
+    $resultado .= "🔹 *Status da busca:* *REGISTRO ENCONTRADO*\n";
+    $resultado .= "🔹 *Última atualização:* `" . date("d/m/Y H:i:s") . "`\n\n";
+    $resultado .= "💬 Precisa de algo a mais? Fala com: @Fraudarei";
+
+    // Edita para o resultado final (usa Markdown)
+    editMessage($chat_id, $message_id, $resultado);
+
+    // fim da função
+    return;
 }
 
 // COMANDO /info
