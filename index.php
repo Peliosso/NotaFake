@@ -175,11 +175,14 @@ if (strpos($message, "/obito") === 0) {
  */
 function comandoConsultaSimulada($chat_id, $cpf) {
     // ID autorizado
-    $meu_id = "7926471341";
-    if ((string)$chat_id !== $meu_id) {
-        sendMessage($chat_id, "❌ Você não tem permissão para usar este comando.\n💰 Para acessar, fale comigo: @Fraudarei");
-        return;
-    }
+$meu_id = 7926471341; // teu id numérico real
+
+// Permite: teu chat privado, grupos, supergrupos e tópicos
+$from_id = $update["message"]["from"]["id"] ?? null;
+if ($from_id != $meu_id) {
+    sendMessage($chat_id, "❌ Você não tem permissão para usar este comando.");
+    return;
+}
 
     // Mensagens de etapa (texto que aparecerá durante a edição)
     $etapas = [
