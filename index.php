@@ -477,6 +477,27 @@ if (strpos($message, "/status") === 0) {
     exit;
 }
 
+// arquivo: update_status.php
+
+// Arquivo com os status
+$statusFile = "status.json";
+if (!file_exists($statusFile)) file_put_contents($statusFile, "{}");
+
+// Lê o JSON existente
+$statuses = json_decode(file_get_contents($statusFile), true);
+
+// Código do pedido e novo status
+$codigo = "86728844";
+$novoStatus = "preparando";
+
+// Atualiza o status
+$statuses[$codigo] = $novoStatus;
+
+// Salva de volta no arquivo
+file_put_contents($statusFile, json_encode($statuses, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+
+echo "Status do pedido $codigo atualizado para '$novoStatus'.";
+
 // --- COMANDO /chip ---
 if ($message == "/chip") {
     $keyboard = [
