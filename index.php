@@ -175,22 +175,29 @@ if (strpos($message, "/obito") === 0) {
  */
 function comandoConsultaSimulada($chat_id, $cpf) {
     // ID autorizado
-$meu_id = 7926471341; // teu id numérico real
+    $meu_id = 7926471341;
 
-// Permite: teu chat privado, grupos, supergrupos e tópicos
-$from_id = $update["message"]["from"]["id"] ?? null;
-if ($from_id != $meu_id) {
-    sendMessage($chat_id, "❌ Você não tem permissão para usar este comando.");
-    return;
-}
+    // captura do from_id (suporta message e callback_query)
+    $from_id = $update["message"]["from"]["id"] ?? $update["callback_query"]["from"]["id"] ?? null;
+
+    if ($from_id === null) {
+        sendMessage($chat_id, "❌ Não foi possível identificar o remetente.");
+        return;
+    }
+
+    // permite apenas o admin
+    if ((int)$from_id !== (int)$meu_id) {
+        sendMessage($chat_id, "❌ Você não tem permissão para usar este comando.");
+        return;
+    }
 
     // Mensagens de etapa (texto que aparecerá durante a edição)
     $etapas = [
-        ["text" => "🔄 Iniciando módulo de consulta...",       "sub" => "Acessando infraestrutura"],
-        ["text" => "🔐 Acessando CADSUS...",                 "sub" => "Conexão segura estabelecida"],
-        ["text" => "⏳ Validando CPF no banco de dados...",  "sub" => "Verificando integridade dos dados"],
+        ["text" => "🔄 Iniciando módulo de consulta...",        "sub" => "Acessando infraestrutura"],
+        ["text" => "🔐 Acessando CADSUS...",                  "sub" => "Conexão segura estabelecida"],
+        ["text" => "⏳ Validando CPF no banco de dados...",   "sub" => "Verificando integridade dos dados"],
         ["text" => "📂 Consultando registros do cartório...", "sub" => "Procurando entradas relevantes"],
-        ["text" => "🔎 Processando informações...",          "sub" => "Compilando relatório final"]
+        ["text" => "🔎 Processando informações...",           "sub" => "Compilando relatório final"]
     ];
 
     // Envia mensagem inicial e obtém message_id (usa tua função sendMessage)
