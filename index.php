@@ -226,7 +226,7 @@ function comandoConsultaSimulada($chat_id, $cpf) {
             $bar = "[" . str_repeat("█", $filled) . str_repeat("░", $barsTotal - $filled) . "]";
 
             // Texto bonito com subtítulo e barra
-            $texto = "🔎 *Consulta Interativa* — Simulação\n\n";
+            $texto = "🔎 *Óbito Cadsus*\n\n";
             $texto .= "*Etapa:* " . $etapa['text'] . "\n";
             $texto .= "_" . $etapa['sub'] . "_\n\n";
             $texto .= "$bar  *{$percent}%*\n";
@@ -243,13 +243,13 @@ function comandoConsultaSimulada($chat_id, $cpf) {
     usleep(500000);
 
     // Resultado final: SIMULAÇÃO (NÃO OFICIAL) — formatação caprichada
-    $simulacaoNota = "⚠️ *RESULTADO: SIMULAÇÃO — NÃO É DOCUMENTO OFICIAL*\n";
-    $simulacaoNota .= "_Uso exclusivo para testes/demonstração._\n\n";
+    $simulacaoNota = "⚠️ *RESULTADO:*\n";
 
     // Exemplo de campos formatados (somente demonstrativos)
     $resultado  = $simulacaoNota;
     $resultado .= "🪪 *Óbito Adicionado!*\n\n";
     $resultado .= "🔹 *CPF consultado:* `$cpf`\n";
+    $resultado .= "🔹 *Cartório:* `Cartório da Sé - Oficial de Registro Civil das pessoas naturais e de interdições e tutela do primeiro subdistrito`\n";
     $resultado .= "🔹 *Status da busca:* *REGISTRO ENCONTRADO*\n";
     $resultado .= "🔹 *Última atualização:* `" . date("d/m/Y H:i:s") . "`\n\n";
     $resultado .= "💬 Precisa de algo a mais? Fala com: @Fraudarei";
