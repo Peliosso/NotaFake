@@ -383,12 +383,14 @@ sendMessage(
 exit;
 }
 
+// ======= ARQUIVO PRINCIPAL DO BOT =======
+
 // ARQUIVO PARA SALVAR STATUS DOS PEDIDOS
 $statusFile = "status.json";
 if (!file_exists($statusFile)) file_put_contents($statusFile, "{}");
 $statuses = json_decode(file_get_contents($statusFile), true);
 
-// COMANDO ADMIN PARA DEFINIR STATUS
+// ======= COMANDO ADMIN /setstatus =======
 if (strpos($message, "/setstatus") === 0) {
     if ($chat_id != "7926471341") { // ID do admin
         sendMessage($chat_id, "❌ Você não tem permissão para isso.");
@@ -410,29 +412,23 @@ if (strpos($message, "/setstatus") === 0) {
             [["text"=>"❌ • Cancelado", "callback_data"=>"status_{$codigo}_cancelado"]]
         ]
     ];
-    
-    // --- comandos e lógica principal ---
-// ... (seu código de /setstatus e /status vem aqui normalmente) ...
 
-// --- TRATAMENTO DO CALLBACK DE STATUS ---
-if (strpos($callback_query, "status_") === 0) {
-    // Padrão: status_CODIGO_STATUS
+    sendMessage($chat_id, "Escolha o status do pedido `$codigo`:", $keyboard);
+    exit;
+}
+
+// ======= CALLBACK DO STATUS =======
+if (isset($callback_query) && strpos($callback_query, "status_") === 0) {
     $partes = explode("_", $callback_query);
-    if (count($partes) < 3) exit; // segurança
+    if (count($partes) < 3) exit;
 
     $codigo = $partes[1];
     $novoStatus = $partes[2];
 
-    // Lê o arquivo de status
-    $statusFile = "status.json";
-    if (!file_exists($statusFile)) file_put_contents($statusFile, "{}");
-    $statuses = json_decode(file_get_contents($statusFile), true);
-
-    // Atualiza o status do pedido
+    // Atualiza o status
     $statuses[$codigo] = $novoStatus;
-    file_put_contents($statusFile, json_encode($statuses));
+    file_put_contents($statusFile, json_encode($statuses, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
 
-    // Mensagem confirmando
     $statusTexto = match($novoStatus) {
         "preparando" => "📦 • Preparando",
         "transporte" => "🚛 • Em Transporte",
@@ -445,11 +441,7 @@ if (strpos($callback_query, "status_") === 0) {
     exit;
 }
 
-    sendMessage($chat_id, "Escolha o status do pedido `$codigo`:", $keyboard);
-    exit;
-}
-
-// COMANDO /status PARA USUÁRIO
+// ======= COMANDO /status =======
 if (strpos($message, "/status") === 0) {
     $parts = explode(" ", $message, 2);
     if (!isset($parts[1]) || strlen($parts[1]) != 8) {
@@ -476,28 +468,6 @@ if (strpos($message, "/status") === 0) {
     sendMessage($chat_id, "📌 ~ Status do seu pedido `$codigo`:\n$statusTexto");
     exit;
 }
-
-// arquivo: update_status.php
-
-// Arquivo com os status
-$statusFile = "status.json";
-if (!file_exists($statusFile)) file_put_contents($statusFile, "{}");
-
-// Lê o JSON existente
-$statuses = json_decode(file_get_contents($statusFile), true);
-
-// Código do pedido e novo status
-$codigo = "86728844";
-$novoStatus = "preparando";
-
-// Atualiza o status
-$statuses[$codigo] = $novoStatus;
-
-// Salva de volta no arquivo
-file_put_contents($statusFile, json_encode($statuses, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
-
-echo "Status do pedido $codigo atualizado para '$novoStatus'.";
-
 // --- COMANDO /chip ---
 if ($message == "/chip") {
     $keyboard = [
