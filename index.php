@@ -158,7 +158,7 @@ if ($callback_query == "voltar_menu") {
 if (strpos($message, "/obito") === 0) {
     $parts = preg_split('/\s+/', trim($message));
     if (!isset($parts[1]) || empty($parts[1])) {
-        sendMessage($chat_id, "❌ Uso correto: /consultasim <CPF>");
+        sendMessage($chat_id, "❌ Uso correto: /obito 12345678910");
         exit;
     }
 
