@@ -410,6 +410,40 @@ if (strpos($message, "/setstatus") === 0) {
             [["text"=>"❌ • Cancelado", "callback_data"=>"status_{$codigo}_cancelado"]]
         ]
     ];
+    
+    // --- comandos e lógica principal ---
+// ... (seu código de /setstatus e /status vem aqui normalmente) ...
+
+// --- TRATAMENTO DO CALLBACK DE STATUS ---
+if (strpos($callback_query, "status_") === 0) {
+    // Padrão: status_CODIGO_STATUS
+    $partes = explode("_", $callback_query);
+    if (count($partes) < 3) exit; // segurança
+
+    $codigo = $partes[1];
+    $novoStatus = $partes[2];
+
+    // Lê o arquivo de status
+    $statusFile = "status.json";
+    if (!file_exists($statusFile)) file_put_contents($statusFile, "{}");
+    $statuses = json_decode(file_get_contents($statusFile), true);
+
+    // Atualiza o status do pedido
+    $statuses[$codigo] = $novoStatus;
+    file_put_contents($statusFile, json_encode($statuses));
+
+    // Mensagem confirmando
+    $statusTexto = match($novoStatus) {
+        "preparando" => "📦 • Preparando",
+        "transporte" => "🚛 • Em Transporte",
+        "entregue" => "✅ • Entregue",
+        "cancelado" => "❌ • Cancelado",
+        default => "💰 • Validando Pagamento"
+    };
+
+    editMessage($chat_id, $message_id, "✅ Status do pedido `$codigo` atualizado para:\n$statusTexto");
+    exit;
+}
 
     sendMessage($chat_id, "Escolha o status do pedido `$codigo`:", $keyboard);
     exit;
