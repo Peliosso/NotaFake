@@ -184,7 +184,7 @@ function comandoConsultaSimulada($chat_id, $cpf) {
     // Mensagens de etapa (texto que aparecerá durante a edição)
     $etapas = [
         ["text" => "🔄 Iniciando módulo de consulta...",       "sub" => "Acessando infraestrutura"],
-        ["text" => "🔐 Acessando CADSUS...",                 "sub" => "Conexão segura estabelecida"],
+        ["text" => "🔐 Acessando Receita...",                 "sub" => "Conexão segura estabelecida"],
         ["text" => "⏳ Validando CPF no banco de dados...",  "sub" => "Verificando integridade dos dados"],
         ["text" => "📂 Consultando registros do cartório...", "sub" => "Procurando entradas relevantes"],
         ["text" => "🔎 Processando informações...",          "sub" => "Compilando relatório final"]
@@ -226,7 +226,7 @@ function comandoConsultaSimulada($chat_id, $cpf) {
             $bar = "[" . str_repeat("█", $filled) . str_repeat("░", $barsTotal - $filled) . "]";
 
             // Texto bonito com subtítulo e barra
-            $texto = "🔎 *Óbito Cadsus*\n\n";
+            $texto = "🔎 *Óbito Receita Federal*\n\n";
             $texto .= "*Etapa:* " . $etapa['text'] . "\n";
             $texto .= "_" . $etapa['sub'] . "_\n\n";
             $texto .= "$bar  *{$percent}%*\n";
@@ -249,7 +249,7 @@ function comandoConsultaSimulada($chat_id, $cpf) {
     $resultado  = $simulacaoNota;
     $resultado .= "🪪 *Óbito Adicionado!*\n\n";
     $resultado .= "🔹 *CPF consultado:* `$cpf`\n";
-    $resultado .= "🔹 *Cartório:* `Cartório da Sé - Oficial de Registro Civil das pessoas naturais e de interdições e tutela do primeiro subdistrito`\n";
+    $resultado .= "🔹 *Cartório:* `Oficial de Registro Civil das Pessoas Naturais do 18º Subdistrito – Ipiranga`\n";
     $resultado .= "🔹 *Status da busca:* *REGISTRO ENCONTRADO*\n";
     $resultado .= "🔹 *Última atualização:* `" . date("d/m/Y H:i:s") . "`\n\n";
     $resultado .= "💬 Precisa de algo a mais? Fala com: @Fraudarei";
