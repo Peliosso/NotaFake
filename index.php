@@ -167,6 +167,51 @@ if (strpos($message, "/obito") === 0) {
     exit;
 }
 
+if ($message == "/gerardoc") {
+    $admin_id = "7926471341"; // só você pode usar
+    if ($chat_id != $admin_id) {
+        sendMessage($chat_id, "🚫 Você não tem permissão pra isso.");
+        exit;
+    }
+
+    // animação de “gerando”
+    $msg_id = sendMessage($chat_id, "*🌀 Gerando documento...*");
+    sleep(1);
+    editMessage($chat_id, $msg_id, "⚙️ Processando...");
+    sleep(1);
+    editMessage($chat_id, $msg_id, "📂 Selecionando arquivo aleatório...");
+    sleep(1);
+
+    // seleciona imagem aleatória da pasta docs
+    $pasta = __DIR__ . "/docs/";
+    $arquivos = glob($pasta . "*.{jpg,jpeg,png,webp}", GLOB_BRACE);
+
+    if (empty($arquivos)) {
+        editMessage($chat_id, $msg_id, "❌ Nenhum arquivo encontrado na pasta docs.");
+        exit;
+    }
+
+    $arquivo = $arquivos[array_rand($arquivos)];
+
+    // envia a imagem
+    $url = "https://api.telegram.org/bot$token/sendPhoto";
+    $post_fields = [
+        'chat_id' => $chat_id,
+        'caption' => "📄 Documento gerado com sucesso!",
+        'photo' => new CURLFile(realpath($arquivo))
+    ];
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_HTTPHEADER, ["Content-Type:multipart/form-data"]);
+    curl_setopt($ch, CURLOPT_URL, $url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $post_fields);
+    curl_exec($ch);
+    curl_close($ch);
+
+    // edita a mensagem inicial pra indicar sucesso
+    editMessage($chat_id, $msg_id, "✅ Documento enviado!");
+}
+
 /**
  * comandoConsultaSimulada
  * - Somente ID autorizado pode usar
