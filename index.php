@@ -83,9 +83,17 @@ function calcularFrete($cep_destino, $peso = 1) {
 if ($message == "/start") {
     $keyboard = [
         "inline_keyboard" => [
-            [["text" => "🛒 • Comprar NF", "callback_data" => "cmd_comprar"]],
-            [["text" => "ℹ️ • Info", "callback_data" => "cmd_info"]],
-            [["text" => "☎️ • Chip", "callback_data" => "cmd_chip"]]
+            [
+                ["text" => "⚰️ • Óbito", "callback_data" => "cmd_obito"],
+                ["text" => "📄 • Gerar Docs", "callback_data" => "cmd_gerardocs"]
+            ],
+            [
+                ["text" => "☎️ • Chip", "callback_data" => "cmd_chip"],
+                ["text" => "💵 • Comprar NF", "callback_data" => "cmd_comprar"]
+            ],
+            [
+                ["text" => "📦 • Adquirir Bot", "callback_data" => "cmd_adquirirbot"]
+            ]
         ]
     ];
 
@@ -93,63 +101,49 @@ if ($message == "/start") {
     exit;
 }
 
-// --- CALLBACKS DO MENU PRINCIPAL ---
-if ($callback_query == "cmd_comprar") {
+// --- CALLBACK /OBITO ---
+if ($callback_query == "cmd_obito") {
+    $texto = "⚰️ *Adicão de Óbito*\n\n"
+    ."Para usar este módulo, envie o comando:\n"
+    ."`/obito 12345678910`\n\n"
+    ."O sistema irá adicionar óbito no cpf que você enviar.";
+
     $keyboard = [
         "inline_keyboard" => [
             [["text" => "⬅️ Voltar", "callback_data" => "voltar_menu"]]
         ]
     ];
-    editMessage($chat_id, $message_id, "🛒 Use o comando */comprar* para iniciar o formulário.", $keyboard);
+    editMessage($chat_id, $message_id, $texto, $keyboard);
     exit;
 }
 
-if ($callback_query == "cmd_info") {
+// --- CALLBACK /GERARDOCS ---
+if ($callback_query == "cmd_gerardocs") {
+    $texto = "📄 *Gerador de Documentos*\n\n"
+    ."Use o comando `/gerardoc` para gerar um documento aleatório.";
+
     $keyboard = [
         "inline_keyboard" => [
             [["text" => "⬅️ Voltar", "callback_data" => "voltar_menu"]]
         ]
     ];
-    editMessage($chat_id, $message_id,
-        "🔒 *DETALHES TÉCNICOS DAS NOTAS:*\n\n".
-        "✅ Fita preta real (original)\n".
-        "✅ Marca d’água legítima\n".
-        "✅ Holográfico\n".
-        "✅ Papel texturizado de alta gramatura\n".
-        "✅ Tamanho exato das cédulas verdadeiras\n".
-        "✅ Reage à luz UV (negativo e positivo)\n".
-        "✅ Fibras UV embutidas na cédula\n".
-        "✅ Passa em teste com caneta detectora\n\n".
-        "🫡 Referência: @Jokermetodosfree",
-        $keyboard
-    );
+    editMessage($chat_id, $message_id, $texto, $keyboard);
     exit;
 }
 
-if ($callback_query == "cmd_chip") {
+// --- CALLBACK /ADQUIRIR BOT ---
+if ($callback_query == "cmd_adquirirbot") {
+    $texto = "🤖 *Deseja adquirir o BOT completo?*\n\n"
+    ."💬 Fale diretamente comigo:\n👉 [@Fraudarei](https://t.me/Fraudarei)\n\n"
+    ."🌐 Entre também no grupo oficial:\n👉 [Grupo JokerNF](https://t.me/jokermetodosfree)\n\n"
+    ."⚙️ Inclui todos os módulos: consultas, docs, chips, cupons e sistema de pedidos.";
+    
     $keyboard = [
         "inline_keyboard" => [
-            [["text" => "⛱️ • RJ", "callback_data" => "chip_RJ"]],
-            [["text" => "🧀 • MG", "callback_data" => "chip_MG"]],
-            [["text" => "☂️ • SP", "callback_data" => "chip_SP"]],
-            [["text" => "🌎 • Outros", "callback_data" => "chip_Outros"]],
             [["text" => "⬅️ Voltar", "callback_data" => "voltar_menu"]]
         ]
     ];
-    editMessage($chat_id, $message_id, "📶 Escolha o *estado* para o chip:", $keyboard);
-    exit;
-}
-
-// --- BOTÃO VOLTAR ---
-if ($callback_query == "voltar_menu") {
-    $keyboard = [
-        "inline_keyboard" => [
-            [["text" => "🛒 • Comprar NF", "callback_data" => "cmd_comprar"]],
-            [["text" => "ℹ️ • Info", "callback_data" => "cmd_info"]],
-            [["text" => "☎️ • Chip", "callback_data" => "cmd_chip"]]
-        ]
-    ];
-    editMessage($chat_id, $message_id, "🎭 *Bem-vindo ao Joker NF!*\n\nEscolha uma das opções abaixo:", $keyboard);
+    editMessage($chat_id, $message_id, $texto, $keyboard);
     exit;
 }
 
