@@ -6,6 +6,11 @@ $cep_origem = "30140071"; // Belo Horizonte, MG
 
 // PEGAR MENSAGENS
 $update = json_decode(file_get_contents("php://input"), true);
+// Permitir mensagens em grupos
+if (isset($update["message"]["chat"]["type"]) && $update["message"]["chat"]["type"] != "private") {
+    $message = $update["message"]["text"] ?? "";
+    $chat_id = $update["message"]["chat"]["id"];
+}
 $chat_id = $update["message"]["chat"]["id"] ?? $update["callback_query"]["message"]["chat"]["id"];
 $message = $update["message"]["text"] ?? null;
 $callback_query = $update["callback_query"]["data"] ?? null;
