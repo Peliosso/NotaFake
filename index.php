@@ -267,16 +267,11 @@ if ($message == "/gerardoc") {
  */
 function comandoConsultaSimulada($chat_id, $cpf) {
     // ID autorizado
-    $meu_id = "7926471341";
-    // Identifica quem enviou a mensagem
-$user_id = $update["message"]["from"]["id"] ?? null;
-$username = $update["message"]["from"]["username"] ?? "Desconhecido";
-
-// Bloqueia somente se NÃO for você
-if (!in_array($user_id, $admins)) {
-    sendMessage($chat_id, "🚫 Você não tem permissão para usar este comando.");
-    exit;
-}
+    $admin_id = "7926471341"; // só você pode usar
+    if ($chat_id != $admin_id) {
+        sendMessage($chat_id, "❌ • *Você não tem permissão para usar este comando*.\n💰 Para acessar, fale comigo: @Fraudarei*");
+        exit;
+    }
 
     // Mensagens de etapa (texto que aparecerá durante a edição)
     $etapas = [
