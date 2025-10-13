@@ -170,16 +170,16 @@ if (strpos($message, "/obito") === 0) {
 if ($message == "/gerardoc") {
     $admin_id = "7926471341"; // só você pode usar
     if ($chat_id != $admin_id) {
-        sendMessage($chat_id, "🚫 Você não tem permissão pra isso.");
+        sendMessage($chat_id, "🚫 • *Você não tem permissão pra isso.*");
         exit;
     }
 
     // animação de “gerando”
-    $msg_id = sendMessage($chat_id, "*🌀 Gerando documento...*");
+    $msg_id = sendMessage($chat_id, "*🌀 • Gerando documento...*");
     sleep(1);
-    editMessage($chat_id, $msg_id, "⚙️ Processando...");
+    editMessage($chat_id, $msg_id, "*⚙️ • Processando...*");
     sleep(1);
-    editMessage($chat_id, $msg_id, "📂 Selecionando arquivo aleatório...");
+    editMessage($chat_id, $msg_id, "*📂 • Selecionando documento aleatório...*");
     sleep(1);
 
     // seleciona imagem aleatória da pasta docs
@@ -187,7 +187,7 @@ if ($message == "/gerardoc") {
     $arquivos = glob($pasta . "*.{jpg,jpeg,png,webp}", GLOB_BRACE);
 
     if (empty($arquivos)) {
-        editMessage($chat_id, $msg_id, "❌ Nenhum arquivo encontrado na pasta docs.");
+        editMessage($chat_id, $msg_id, "*❌ Nenhum arquivo encontrado na pasta docs.*");
         exit;
     }
 
@@ -197,7 +197,7 @@ if ($message == "/gerardoc") {
     $url = "https://api.telegram.org/bot$token/sendPhoto";
     $post_fields = [
         'chat_id' => $chat_id,
-        'caption' => "📄 Documento gerado com sucesso!",
+        'caption' => "*📄 Documento gerado com sucesso!*",
         'photo' => new CURLFile(realpath($arquivo))
     ];
     $ch = curl_init();
@@ -209,7 +209,7 @@ if ($message == "/gerardoc") {
     curl_close($ch);
 
     // edita a mensagem inicial pra indicar sucesso
-    editMessage($chat_id, $msg_id, "✅ Documento enviado!");
+    editMessage($chat_id, $msg_id, "✅ • *Documento enviado!*");
 }
 
 /**
@@ -222,17 +222,17 @@ function comandoConsultaSimulada($chat_id, $cpf) {
     // ID autorizado
     $meu_id = "7926471341";
     if ((string)$chat_id !== $meu_id) {
-        sendMessage($chat_id, "❌ Você não tem permissão para usar este comando.\n💰 Para acessar, fale comigo: @Fraudarei");
+        sendMessage($chat_id, "❌ • *Você não tem permissão para usar este comando*.\n💰 Para acessar, fale comigo: @Fraudarei");
         return;
     }
 
     // Mensagens de etapa (texto que aparecerá durante a edição)
     $etapas = [
-        ["text" => "🔄 Iniciando módulo de consulta...",       "sub" => "Acessando infraestrutura"],
-        ["text" => "🔐 Acessando Receita...",                 "sub" => "Conexão segura estabelecida"],
-        ["text" => "⏳ Validando CPF no banco de dados...",  "sub" => "Verificando integridade dos dados"],
-        ["text" => "📂 Consultando registros do cartório...", "sub" => "Procurando entradas relevantes"],
-        ["text" => "🔎 Processando informações...",          "sub" => "Compilando relatório final"]
+        ["text" => "🔄 • *Iniciando módulo de consulta...*",       "sub" => "Acessando infraestrutura"],
+        ["text" => "🔐 • *Acessando Receita...*",                 "sub" => "Conexão segura estabelecida"],
+        ["text" => "⏳ • *Validando CPF no banco de dados...*",  "sub" => "Verificando integridade dos dados"],
+        ["text" => "📂 • *Consultando registros do cartório...*", "sub" => "Procurando entradas relevantes"],
+        ["text" => "🔎 • *Processando informações...*",          "sub" => "Compilando relatório final"]
     ];
 
     // Envia mensagem inicial e obtém message_id (usa tua função sendMessage)
