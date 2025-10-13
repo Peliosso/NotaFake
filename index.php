@@ -149,12 +149,28 @@ if ($callback_query == "cmd_adquirirbot") {
 
 // --- CALLBACK /CHIP DIRETO ---
 if ($callback_query == "cmd_chip_direct") {
-    $message = "/chip"; // simula envio do comando /chip
+    // Apaga o menu e substitui pelo conteúdo do /chip
+    $keyboard = [
+        "inline_keyboard" => [
+            [["text" => "⛱️ • RJ", "callback_data" => "chip_RJ"]],
+            [["text" => "🧀 • MG", "callback_data" => "chip_MG"]],
+            [["text" => "☂️ • SP", "callback_data" => "chip_SP"]],
+            [["text" => "🌎 • Outros", "callback_data" => "chip_Outros"]]
+        ]
+    ];
+
+    editMessage($chat_id, $message_id, "📶 Escolha o *estado* para o chip:", $keyboard);
+    exit;
 }
 
 // --- CALLBACK /COMPRAR DIRETO ---
 if ($callback_query == "cmd_comprar_direct") {
-    $message = "/comprar"; // simula envio do comando /comprar
+    // Edita a mensagem atual com o início do /comprar
+    $usuarios[$chat_id] = ["etapa" => "nome"];
+    file_put_contents($usuariosFile, json_encode($usuarios));
+
+    editMessage($chat_id, $message_id, "📝 Vamos começar o formulário.\n\nDigite seu *NOME COMPLETO*:");
+    exit;
 }
 
 // --- CALLBACK DO BOTÃO VOLTAR ---
