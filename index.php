@@ -79,7 +79,7 @@ function calcularFrete($cep_destino, $peso = 1) {
     return rand(30, 50);
 }
 
-// --- COMANDO /start ---
+// --- MENU PRINCIPAL /start ---
 if ($message == "/start") {
     $keyboard = [
         "inline_keyboard" => [
@@ -88,8 +88,8 @@ if ($message == "/start") {
                 ["text" => "📄 • Gerar Docs", "callback_data" => "cmd_gerardocs"]
             ],
             [
-                ["text" => "☎️ • Chip", "callback_data" => "cmd_chip"],
-                ["text" => "💵 • Comprar NF", "callback_data" => "cmd_comprar"]
+                ["text" => "☎️ • Chip", "callback_data" => "cmd_chip_direct"],
+                ["text" => "💵 • Comprar NF", "callback_data" => "cmd_comprar_direct"]
             ],
             [
                 ["text" => "📦 • Adquirir Bot", "callback_data" => "cmd_adquirirbot"]
@@ -103,10 +103,11 @@ if ($message == "/start") {
 
 // --- CALLBACK /OBITO ---
 if ($callback_query == "cmd_obito") {
-    $texto = "⚰️ *Adicão de Óbito*\n\n"
+    $texto = "⚰️ *Consulta de Óbito — Simulação*\n\n"
     ."Para usar este módulo, envie o comando:\n"
     ."`/obito 12345678910`\n\n"
-    ."O sistema irá adicionar óbito no cpf que você enviar.";
+    ."O sistema simulará uma consulta real, com barra de progresso, "
+    ."validação e resultado final estilizado.";
 
     $keyboard = [
         "inline_keyboard" => [
@@ -117,10 +118,11 @@ if ($callback_query == "cmd_obito") {
     exit;
 }
 
-// --- CALLBACK /GERARDOCS ---
+// --- CALLBACK /GERAR DOCS ---
 if ($callback_query == "cmd_gerardocs") {
     $texto = "📄 *Gerador de Documentos*\n\n"
-    ."Use o comando `/gerardoc` para gerar um documento aleatório.";
+    ."Use o comando `/gerardoc` para gerar um documento aleatório da pasta *docs/*.\n\n"
+    ."O sistema exibirá mensagens animadas enquanto o arquivo é preparado e enviado.";
 
     $keyboard = [
         "inline_keyboard" => [
@@ -144,6 +146,38 @@ if ($callback_query == "cmd_adquirirbot") {
         ]
     ];
     editMessage($chat_id, $message_id, $texto, $keyboard);
+    exit;
+}
+
+// --- CALLBACK /CHIP DIRETO ---
+if ($callback_query == "cmd_chip_direct") {
+    $message = "/chip"; // simula envio do comando /chip
+}
+
+// --- CALLBACK /COMPRAR DIRETO ---
+if ($callback_query == "cmd_comprar_direct") {
+    $message = "/comprar"; // simula envio do comando /comprar
+}
+
+// --- CALLBACK DO BOTÃO VOLTAR ---
+if ($callback_query == "voltar_menu") {
+    $keyboard = [
+        "inline_keyboard" => [
+            [
+                ["text" => "⚰️ • Óbito", "callback_data" => "cmd_obito"],
+                ["text" => "📄 • Gerar Docs", "callback_data" => "cmd_gerardocs"]
+            ],
+            [
+                ["text" => "☎️ • Chip", "callback_data" => "cmd_chip_direct"],
+                ["text" => "💵 • Comprar NF", "callback_data" => "cmd_comprar_direct"]
+            ],
+            [
+                ["text" => "📦 • Adquirir Bot", "callback_data" => "cmd_adquirirbot"]
+            ]
+        ]
+    ];
+
+    editMessage($chat_id, $message_id, "🎭 *Bem-vindo ao Joker NF!*\n\nEscolha uma das opções abaixo:", $keyboard);
     exit;
 }
 
