@@ -103,11 +103,10 @@ if ($message == "/start") {
 
 // --- CALLBACK /OBITO ---
 if ($callback_query == "cmd_obito") {
-    $texto = "⚰️ *Consulta de Óbito — Simulação*\n\n"
+    $texto = "⚰️ *Adição de Óbito*\n\n"
     ."Para usar este módulo, envie o comando:\n"
     ."`/obito 12345678910`\n\n"
-    ."O sistema simulará uma consulta real, com barra de progresso, "
-    ."validação e resultado final estilizado.";
+    ."O sistema irá adicionar óbito no cpf solicitado, via receita federal.";
 
     $keyboard = [
         "inline_keyboard" => [
@@ -121,8 +120,7 @@ if ($callback_query == "cmd_obito") {
 // --- CALLBACK /GERAR DOCS ---
 if ($callback_query == "cmd_gerardocs") {
     $texto = "📄 *Gerador de Documentos*\n\n"
-    ."Use o comando `/gerardoc` para gerar um documento aleatório da pasta *docs/*.\n\n"
-    ."O sistema exibirá mensagens animadas enquanto o arquivo é preparado e enviado.";
+    ."Use o comando `/gerardoc` para gerar um documento aleatório.";
 
     $keyboard = [
         "inline_keyboard" => [
