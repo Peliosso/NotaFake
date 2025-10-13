@@ -197,7 +197,7 @@ if ($message == "/gerardoc") {
     $url = "https://api.telegram.org/bot$token/sendPhoto";
     $post_fields = [
         'chat_id' => $chat_id,
-        'caption' => "*📄 Documento gerado com sucesso!*",
+        'caption' => "📄 • Documento gerado com sucesso!",
         'photo' => new CURLFile(realpath($arquivo))
     ];
     $ch = curl_init();
