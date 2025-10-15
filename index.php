@@ -157,34 +157,38 @@ if ($message == "/start") {
 
 // --- CALLBACK /OBITO ---
 if ($data == "cmd_obito") {
-    // responde o callback para tirar o "loading" no Telegram client
+    // responde o callback (remove o spinner no client)
     $answerData = [
         "callback_query_id" => $callback_query["id"],
-        "text" => "Abrindo módulo...",
+        "text" => "Abrindo módulo de óbito...",
         "show_alert" => false
     ];
     file_get_contents($apiURL . "answerCallbackQuery?" . http_build_query($answerData));
 
-    // texto neutro (substitua pelo conteúdo que for legal)
-    $caption = "⚰️ *Módulo de Exemplo — Informação ilustrativa*\n\n"
-        ."Envie o comando correspondente caso queira prosseguir.\n\n"
-        ."`/exemplo 123`";
+    // caminhos das imagens (ajusta os nomes conforme sua pasta)
+    $imagemMenuOriginal = __DIR__ . "/imagens/Design sem nome.png"; // imagem do menu inicial
+    $imagemModulo = __DIR__ . "/imagens/modulo_obito.jpg"; // imagem ilustrativa do módulo
 
-    $keyboard = [
+    // legenda ilustrativa (NEUTRA)
+    $captionModulo = "⚰️ *Módulo de Óbito*\n\n"
+        . "Use /obito para adicinar o óbito no CPF de terceiros.\n\n"
+        . "`/obito 111.222.333-44`";
+
+    // keyboard do módulo (com voltar)
+    $keyboardModulo = [
         "inline_keyboard" => [
             [["text" => "⬅️ Voltar", "callback_data" => "voltar_menu"]]
         ]
     ];
 
-    // Se a mensagem original é uma foto, edite a legenda (caption)
-    $dataEdit = [
-        "chat_id" => $chat_id,
-        "message_id" => $message_id,
-        "caption" => $caption,
-        "parse_mode" => "Markdown",
-        "reply_markup" => json_encode($keyboard)
-    ];
-    file_get_contents($apiURL . "editMessageCaption?" . http_build_query($dataEdit));
+    // envia a foto do módulo (nova mensagem com foto + teclado)
+    sendPhotoFromFile($chat_id, $imagemModulo, $captionModulo, $keyboardModulo);
+
+    // apaga a mensagem anterior (menu) para "trocar" a foto
+    if (!empty($message_id)) {
+        deleteMessageById($chat_id, $message_id);
+    }
+
     exit;
 }
 
