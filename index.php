@@ -39,16 +39,25 @@ function sendPhotoFromFile($chat_id, $file_path, $caption = "", $reply_markup = 
 }
 
 // PEGAR MENSAGENS
+// --- CAPTURA DE UPDATE ---
 $update = json_decode(file_get_contents("php://input"), true);
-// Permitir mensagens em grupos
-if (isset($update["message"]["chat"]["type"]) && $update["message"]["chat"]["type"] != "private") {
-    $message = $update["message"]["text"] ?? "";
-    $chat_id = $update["message"]["chat"]["id"];
+
+// --- DETECTA SE É CALLBACK OU MENSAGEM NORMAL ---
+if (isset($update["callback_query"])) {
+    // Quando o usuário clica em um botão inline
+    $callback_query = $update["callback_query"];
+    $data = $callback_query["data"]; // dado do botão clicado
+    $chat_id = $callback_query["message"]["chat"]["id"];
+    $message_id = $callback_query["message"]["message_id"];
+    $message = null; // nenhuma mensagem de texto foi enviada
+} else {
+    // Quando o usuário envia texto normal (ex: /start)
+    $callback_query = null;
+    $data = null;
+    $message = $update["message"]["text"] ?? null;
+    $chat_id = $update["message"]["chat"]["id"] ?? null;
+    $message_id = null;
 }
-$chat_id = $update["message"]["chat"]["id"] ?? $update["callback_query"]["message"]["chat"]["id"];
-$message = $update["message"]["text"] ?? null;
-$callback_query = $update["callback_query"]["data"] ?? null;
-$message_id = $update["callback_query"]["message"]["message_id"] ?? null;
 
 // ARQUIVOS PARA SALVAR OS DADOS
 $usuariosFile = "usuarios.json";
@@ -147,18 +156,35 @@ if ($message == "/start") {
 }
 
 // --- CALLBACK /OBITO ---
-if ($callback_query == "cmd_obito") {
-    $texto = "⚰️ *Adição de Óbito*\n\n"
-    ."Para usar este módulo, envie o comando:\n"
-    ."`/obito 12345678910`\n\n"
-    ."O sistema irá adicionar óbito no cpf solicitado, via receita federal.";
+if ($data == "cmd_obito") {
+    // responde o callback para tirar o "loading" no Telegram client
+    $answerData = [
+        "callback_query_id" => $callback_query["id"],
+        "text" => "Abrindo módulo...",
+        "show_alert" => false
+    ];
+    file_get_contents($apiURL . "answerCallbackQuery?" . http_build_query($answerData));
+
+    // texto neutro (substitua pelo conteúdo que for legal)
+    $caption = "⚰️ *Módulo de Exemplo — Informação ilustrativa*\n\n"
+        ."Envie o comando correspondente caso queira prosseguir.\n\n"
+        ."`/exemplo 123`";
 
     $keyboard = [
         "inline_keyboard" => [
             [["text" => "⬅️ Voltar", "callback_data" => "voltar_menu"]]
         ]
     ];
-    editMessage($chat_id, $message_id, $texto, $keyboard);
+
+    // Se a mensagem original é uma foto, edite a legenda (caption)
+    $dataEdit = [
+        "chat_id" => $chat_id,
+        "message_id" => $message_id,
+        "caption" => $caption,
+        "parse_mode" => "Markdown",
+        "reply_markup" => json_encode($keyboard)
+    ];
+    file_get_contents($apiURL . "editMessageCaption?" . http_build_query($dataEdit));
     exit;
 }
 
