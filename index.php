@@ -4,6 +4,40 @@ $token = "8362847658:AAHoF5LFmYDZdWPm9Umde9M5dqluhnpUl-g";
 $apiURL = "https://api.telegram.org/bot$token/";
 $cep_origem = "30140071"; // Belo Horizonte, MG
 
+// Função para enviar foto local com legenda e botões inline
+function sendPhotoFromFile($chat_id, $file_path, $caption = "", $reply_markup = null) {
+    global $apiURL, $token;
+    // verifica arquivo
+    if (!file_exists($file_path)) {
+        // fallback para mensagem caso arquivo não exista
+        $data = [
+            "chat_id" => $chat_id,
+            "text" => $caption,
+            "parse_mode" => "Markdown"
+        ];
+        if ($reply_markup) $data["reply_markup"] = json_encode($reply_markup);
+        file_get_contents($apiURL . "sendMessage?" . http_build_query($data));
+        return;
+    }
+
+    $url = $apiURL . "sendPhoto";
+    $post_fields = [
+        'chat_id' => $chat_id,
+        'caption' => $caption,
+        'parse_mode' => 'Markdown',
+        'photo' => new CURLFile(realpath($file_path))
+    ];
+    if ($reply_markup) $post_fields['reply_markup'] = json_encode($reply_markup);
+
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $post_fields);
+    curl_exec($ch);
+    curl_close($ch);
+}
+
 // PEGAR MENSAGENS
 $update = json_decode(file_get_contents("php://input"), true);
 // Permitir mensagens em grupos
@@ -102,7 +136,13 @@ if ($message == "/start") {
         ]
     ];
 
-    sendMessage($chat_id, "🎭 *Bem-vindo ao Joker NF!*\n\nEscolha uma das opções abaixo:", $keyboard);
+    // caminho relativo para a imagem que está no servidor (ex: imagens/menu.jpg)
+    $imagemMenu = __DIR__ . "/imagens/menu.jpg"; // ajuste o path/nome conforme sua pasta
+
+    $caption = "🎭 *Bem-vindo ao Joker NF!*\n\nEscolha uma das opções abaixo:";
+
+    // envia a foto com legenda e os botões abaixo
+    sendPhotoFromFile($chat_id, $imagemMenu, $caption, $keyboard);
     exit;
 }
 
