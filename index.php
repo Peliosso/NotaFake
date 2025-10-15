@@ -137,7 +137,7 @@ if ($message == "/start") {
     ];
 
     // caminho relativo para a imagem que está no servidor (ex: imagens/menu.jpg)
-    $imagemMenu = __DIR__ . "/imagens/menu.jpg"; // ajuste o path/nome conforme sua pasta
+    $imagemMenu = __DIR__ . "/imagens/Design sem nome.png"; // ajuste o path/nome conforme sua pasta
 
     $caption = "🎭 *Bem-vindo ao Joker NF!*\n\nEscolha uma das opções abaixo:";
 
