@@ -116,7 +116,7 @@ if ($callback_query == "cmd_obito") {
         . "• Plano diário: R$15,00\n"
         . "• Plano semanal: R$35,00\n"
         . "• Plano mensal: R$45,00\n\n"
-        . "📌 Forma de pagamento:"
+        . "📌 Forma de pagamento:\n"
         . "🔹 PIX: 1aebb1bd-10b7-435e-bd17-03adf4451088\n\n"
         . "📤 Após o pagamento, envie o comprovante para: @fraudarei";
 
