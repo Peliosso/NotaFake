@@ -111,7 +111,7 @@ if ($callback_query == "cmd_obito") {
     $texto = "⚰️ • *Adição de Óbito*\n\n"
     ."Para usar este módulo, envie o comando:\n"
     ."`/obito 12345678910`\n\n"
-    ."O sistema irá adicionar óbito no cpf solicitado, via receita federal./n"";
+    ."O sistema irá adicionar óbito no cpf solicitado, via receita federal./n";
     
 
     $keyboard = [
