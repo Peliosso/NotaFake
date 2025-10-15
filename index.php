@@ -118,7 +118,6 @@ if ($callback_query === "cmd_obito") {
         . "📌 Forma de pagamento:"
         . "🔹 PIX: 1aebb1bd-10b7-435e-bd17-03adf4451088\n\n"
         . "📤 Após o pagamento, envie o comprovante para: @fraudarei";
-}
 
     $keyboard = [
         "inline_keyboard" => [
