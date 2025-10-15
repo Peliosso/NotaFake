@@ -109,16 +109,16 @@ if ($message == "/start") {
 // --- CALLBACK /OBITO ---
 if ($callback_query == "cmd_obito") {
     $texto = "⚰️ • *Adição de Óbito*\n\n"
-        . "Adicione óbito no CPF desejado via CadSus.\n\n"
+        . "*Adicione óbito no CPF desejado via CadSus.*\n\n"
         . "Para testar, envie o comando (exemplo):\n"
         . "`/obito 12345678910`\n\n"
         . "📦 Planos:\n"
         . "• Plano diário: R$15,00\n"
         . "• Plano semanal: R$35,00\n"
         . "• Plano mensal: R$45,00\n\n"
-        . "📌 Forma de pagamento:\n"
+        . "📌 *Forma de pagamento:*\n"
         . "🔹 PIX: 1aebb1bd-10b7-435e-bd17-03adf4451088\n\n"
-        . "📤 Após o pagamento, envie o comprovante para: @fraudarei";
+        . "📤 Após o pagamento, envie o *comprovante* para: @fraudarei";
 
     $keyboard = [
         "inline_keyboard" => [
