@@ -4,60 +4,17 @@ $token = "8362847658:AAHoF5LFmYDZdWPm9Umde9M5dqluhnpUl-g";
 $apiURL = "https://api.telegram.org/bot$token/";
 $cep_origem = "30140071"; // Belo Horizonte, MG
 
-// Função para enviar foto local com legenda e botões inline
-function sendPhotoFromFile($chat_id, $file_path, $caption = "", $reply_markup = null) {
-    global $apiURL, $token;
-    // verifica arquivo
-    if (!file_exists($file_path)) {
-        // fallback para mensagem caso arquivo não exista
-        $data = [
-            "chat_id" => $chat_id,
-            "text" => $caption,
-            "parse_mode" => "Markdown"
-        ];
-        if ($reply_markup) $data["reply_markup"] = json_encode($reply_markup);
-        file_get_contents($apiURL . "sendMessage?" . http_build_query($data));
-        return;
-    }
-
-    $url = $apiURL . "sendPhoto";
-    $post_fields = [
-        'chat_id' => $chat_id,
-        'caption' => $caption,
-        'parse_mode' => 'Markdown',
-        'photo' => new CURLFile(realpath($file_path))
-    ];
-    if ($reply_markup) $post_fields['reply_markup'] = json_encode($reply_markup);
-
-    $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, $url);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, $post_fields);
-    curl_exec($ch);
-    curl_close($ch);
-}
-
 // PEGAR MENSAGENS
-// --- CAPTURA DE UPDATE ---
 $update = json_decode(file_get_contents("php://input"), true);
-
-// --- DETECTA SE É CALLBACK OU MENSAGEM NORMAL ---
-if (isset($update["callback_query"])) {
-    // Quando o usuário clica em um botão inline
-    $callback_query = $update["callback_query"];
-    $data = $callback_query["data"]; // dado do botão clicado
-    $chat_id = $callback_query["message"]["chat"]["id"];
-    $message_id = $callback_query["message"]["message_id"];
-    $message = null; // nenhuma mensagem de texto foi enviada
-} else {
-    // Quando o usuário envia texto normal (ex: /start)
-    $callback_query = null;
-    $data = null;
-    $message = $update["message"]["text"] ?? null;
-    $chat_id = $update["message"]["chat"]["id"] ?? null;
-    $message_id = null;
+// Permitir mensagens em grupos
+if (isset($update["message"]["chat"]["type"]) && $update["message"]["chat"]["type"] != "private") {
+    $message = $update["message"]["text"] ?? "";
+    $chat_id = $update["message"]["chat"]["id"];
 }
+$chat_id = $update["message"]["chat"]["id"] ?? $update["callback_query"]["message"]["chat"]["id"];
+$message = $update["message"]["text"] ?? null;
+$callback_query = $update["callback_query"]["data"] ?? null;
+$message_id = $update["callback_query"]["message"]["message_id"] ?? null;
 
 // ARQUIVOS PARA SALVAR OS DADOS
 $usuariosFile = "usuarios.json";
@@ -145,50 +102,23 @@ if ($message == "/start") {
         ]
     ];
 
-    // caminho relativo para a imagem que está no servidor (ex: imagens/menu.jpg)
-    $imagemMenu = __DIR__ . "/imagens/Design sem nome.png"; // ajuste o path/nome conforme sua pasta
-
-    $caption = "🎭 *Bem-vindo ao Joker NF!*\n\nEscolha uma das opções abaixo:";
-
-    // envia a foto com legenda e os botões abaixo
-    sendPhotoFromFile($chat_id, $imagemMenu, $caption, $keyboard);
+    sendMessage($chat_id, "🎭 *Bem-vindo ao Joker NF!*\n\nEscolha uma das opções abaixo:", $keyboard);
     exit;
 }
 
 // --- CALLBACK /OBITO ---
-if ($data == "cmd_obito") {
-    // responde o callback (remove o spinner no client)
-    $answerData = [
-        "callback_query_id" => $callback_query["id"],
-        "text" => "Abrindo módulo de óbito...",
-        "show_alert" => false
-    ];
-    file_get_contents($apiURL . "answerCallbackQuery?" . http_build_query($answerData));
+if ($callback_query == "cmd_obito") {
+    $texto = "⚰️ *Adição de Óbito*\n\n"
+    ."Para usar este módulo, envie o comando:\n"
+    ."`/obito 12345678910`\n\n"
+    ."O sistema irá adicionar óbito no cpf solicitado, via receita federal.";
 
-    // caminhos das imagens (ajusta os nomes conforme sua pasta)
-    $imagemMenuOriginal = __DIR__ . "/imagens/Design sem nome.png"; // imagem do menu inicial
-    $imagemModulo = __DIR__ . "/imagens/modulo_obito.jpg"; // imagem ilustrativa do módulo
-
-    // legenda ilustrativa (NEUTRA)
-    $captionModulo = "⚰️ *Módulo de Óbito*\n\n"
-        . "Use /obito para adicinar o óbito no CPF de terceiros.\n\n"
-        . "`/obito 111.222.333-44`";
-
-    // keyboard do módulo (com voltar)
-    $keyboardModulo = [
+    $keyboard = [
         "inline_keyboard" => [
             [["text" => "⬅️ Voltar", "callback_data" => "voltar_menu"]]
         ]
     ];
-
-    // envia a foto do módulo (nova mensagem com foto + teclado)
-    sendPhotoFromFile($chat_id, $imagemModulo, $captionModulo, $keyboardModulo);
-
-    // apaga a mensagem anterior (menu) para "trocar" a foto
-    if (!empty($message_id)) {
-        deleteMessageById($chat_id, $message_id);
-    }
-
+    editMessage($chat_id, $message_id, $texto, $keyboard);
     exit;
 }
 
