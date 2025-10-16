@@ -4,6 +4,38 @@ $token = "8362847658:AAHoF5LFmYDZdWPm9Umde9M5dqluhnpUl-g";
 $apiURL = "https://api.telegram.org/bot$token/";
 $cep_origem = "30140071"; // Belo Horizonte, MG
 
+function gerarPix($valor, $emailCliente) {
+    $accessToken = "APP_USR-5980007914059821-091004-76b3148bb6f755868cdc791a58c0c292-2678667901"; // token da conta MP
+    $url = "https://api.mercadopago.com/v1/payments";
+
+    $data = [
+        "transaction_amount" => floatval($valor),
+        "description" => "Compra de saldo JokerNF",
+        "payment_method_id" => "pix",
+        "payer" => [
+            "email" => $emailCliente
+        ]
+    ];
+
+    $headers = [
+        "Content-Type: application/json",
+        "Authorization: Bearer " . $accessToken
+    ];
+
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+    curl_setopt($ch, CURLOPT_POST, 1);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    $response = curl_exec($ch);
+    curl_close($ch);
+
+    $payment = json_decode($response, true);
+
+    // Pega o QR Code Pix (copia e cola)
+    return $payment["point_of_interaction"]["transaction_data"]["qr_code"] ?? null;
+}
+
 // PEGAR MENSAGENS
 $update = json_decode(file_get_contents("php://input"), true);
 // Permitir mensagens em grupos
@@ -755,31 +787,35 @@ if (strpos($callback_query, "qtd_") === 0) {
     editMessage($chat_id, $message_id, "✅ Finalizando seu pedido...");
     sleep(1);
 
-    $dados = $usuarios[$chat_id];
-    $resumo =
-        "✅ *Formulário preenchido com sucesso!*\n\n" .
-        "👤 Nome: {$dados['nome']}\n" .
-        "🏠 Rua: {$dados['rua']}, Nº {$dados['numero']}\n" .
-        "📮 CEP: {$dados['cep']}\n" .
-        "🌆 Cidade: {$dados['cidade']} - {$dados['estado']}\n" .
-        "📍 Bairro: {$dados['bairro']}\n" .
-        "💵 Cédulas: {$dados['cedulas']}\n" .
-        "🔢 Quantidade: {$usuarios[$chat_id]['quantidade']}\n" .
-        "💰 Valor: R$" . number_format($preco, 2, ',', '.') . "\n" .
-        "🚛 Frete: R$" . number_format($frete, 2, ',', '.') . "\n" . 
-       (!empty($usuarios[$chat_id]["cupom"]) 
-    ? "🎟️ Desconto aplicado: {$cupons[$usuarios[$chat_id]['cupom']]['desconto']}%\n" 
-    : "") .
-        "💳 *Total a Pagar*: R$" . number_format($totalComDesconto, 2, ',', '.') . "\n\n" .
-        "📌 *Forma de pagamento:*\n".
-        "🔹 PIX: `1aebb1bd-10b7-435e-bd17-03adf4451088`\n\n" .
-        "📤 *Após o pagamento, envie o comprovante para*: @Fraudarei\n\n" .
-        "📦 *Código de rastreio do pedido:* `$codigoRastreio`\n" .
-        "Use o comando /status seguido do código para acompanhar seu pedido.";
+$dados = $usuarios[$chat_id];
 
-    editMessage($chat_id, $message_id, $resumo);
+// Gera o Pix dinâmico
+$codigoPix = gerarPix($totalComDesconto, $dados['email'] ?? "cliente@example.com");
 
-    unset($usuarios[$chat_id]);
-    file_put_contents($usuariosFile, json_encode($usuarios));
+$resumo =
+    "✅ *Formulário preenchido com sucesso!*\n\n" .
+    "👤 Nome: {$dados['nome']}\n" .
+    "🏠 Rua: {$dados['rua']}, Nº {$dados['numero']}\n" .
+    "📮 CEP: {$dados['cep']}\n" .
+    "🌆 Cidade: {$dados['cidade']} - {$dados['estado']}\n" .
+    "📍 Bairro: {$dados['bairro']}\n" .
+    "💵 Cédulas: {$dados['cedulas']}\n" .
+    "🔢 Quantidade: {$usuarios[$chat_id]['quantidade']}\n" .
+    "💰 Valor: R$" . number_format($preco, 2, ',', '.') . "\n" .
+    "🚛 Frete: R$" . number_format($frete, 2, ',', '.') . "\n" . 
+    (!empty($usuarios[$chat_id]["cupom"]) 
+        ? "🎟️ Desconto aplicado: {$cupons[$usuarios[$chat_id]['cupom']]['desconto']}%\n" 
+        : "") .
+    "💳 *Total a Pagar*: R$" . number_format($totalComDesconto, 2, ',', '.') . "\n\n" .
+    "📌 *Forma de pagamento:*\n" .
+    "🔹 PIX gerado automaticamente: `$codigoPix`\n\n" .
+    "📤 *Após o pagamento, envie o comprovante para*: @Fraudarei\n\n" .
+    "📦 *Código de rastreio do pedido:* `$codigoRastreio`\n" .
+    "Use o comando /status seguido do código para acompanhar seu pedido.";
+
+editMessage($chat_id, $message_id, $resumo);
+
+unset($usuarios[$chat_id]);
+file_put_contents($usuariosFile, json_encode($usuarios));
 }
 ?>
