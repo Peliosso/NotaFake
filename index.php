@@ -4,16 +4,19 @@ $token = "8362847658:AAHoF5LFmYDZdWPm9Umde9M5dqluhnpUl-g";
 $apiURL = "https://api.telegram.org/bot$token/";
 $cep_origem = "30140071"; // Belo Horizonte, MG
 
-function gerarPix($valor, $emailCliente) {
-    $accessToken = "APP_USR-5980007914059821-091004-76b3148bb6f755868cdc791a58c0c292-2678667901"; // token da conta MP
+function gerarPix($valor) {
+    $accessToken = "APP_USR-5980007914059821-091004-76b3148bb6f755868cdc791a58c0c292-2678667901"; // token MP
     $url = "https://api.mercadopago.com/v1/payments";
 
+    // Garantir formato correto do valor
+    $valor = floatval(str_replace(',', '.', $valor));
+
     $data = [
-        "transaction_amount" => floatval($valor),
+        "transaction_amount" => $valor,
         "description" => "Compra de saldo JokerNF",
         "payment_method_id" => "pix",
         "payer" => [
-            "email" => $emailCliente
+            "email" => "jayvih125@gmail.com" // e-mail válido
         ]
     ];
 
@@ -32,8 +35,13 @@ function gerarPix($valor, $emailCliente) {
 
     $payment = json_decode($response, true);
 
-    // Pega o QR Code Pix (copia e cola)
-    return $payment["point_of_interaction"]["transaction_data"]["qr_code"] ?? null;
+    // Debug: salvar resposta do MP se falhar
+    if (!isset($payment['point_of_interaction']['transaction_data']['qr_code'])) {
+        file_put_contents('erro_pix.log', date("Y-m-d H:i:s") . " - Erro gerar Pix: " . print_r($payment, true) . "\n", FILE_APPEND);
+        return "❌ ERRO AO GERAR PIX";
+    }
+
+    return $payment['point_of_interaction']['transaction_data']['qr_code'];
 }
 
 // PEGAR MENSAGENS
