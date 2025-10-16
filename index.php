@@ -789,8 +789,14 @@ if (strpos($callback_query, "qtd_") === 0) {
 
 $dados = $usuarios[$chat_id];
 
-// Gera o Pix dinâmico
-$codigoPix = gerarPix($totalComDesconto, $dados['email'] ?? "cliente@example.com");
+// --- GERA E-MAIL ALEATÓRIO AUTOMÁTICO PARA PIX ---
+$prefix = "pagamentos";              // prefixo da sua conta real
+$dominio = "gmail.com";              // domínio real que você controla
+$rand = substr(md5(uniqid((string)rand(), true)), 0, 8);
+$emailAleatorio = "{$prefix}+{$chat_id}_{$rand}@{$dominio}";
+
+// Gera o Pix usando o e-mail aleatório
+$codigoPix = gerarPix($totalComDesconto, $emailAleatorio);
 
 $resumo =
     "✅ *Formulário preenchido com sucesso!*\n\n" .
