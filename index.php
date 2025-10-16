@@ -44,6 +44,69 @@ function gerarPix($valor) {
     return $payment['point_of_interaction']['transaction_data']['qr_code'];
 }
 
+/**
+ * Gera payload PIX (EMV) — copia e cola — e retorna string pronta.
+ */
+function buildPixPayload($chave, $nome, $cidade, $valor, $txid = "0000") {
+    $f = function($id, $value) {
+        $len = str_pad(strlen($value), 2, "0", STR_PAD_LEFT);
+        return $id . $len . $value;
+    };
+    $gui = "br.gov.bcb.pix";
+    $merchantAccountInfo = $f("00", $gui) . $f("01", $chave);
+    $mpInfo = $f("26", $merchantAccountInfo);
+    $valor = number_format(floatval(str_replace(',', '.', $valor)), 2, '.', '');
+    $txValue = $f("54", $valor);
+    $merchantName = strtoupper(substr(preg_replace('/[^A-Za-z0-9 ]/', '', $nome), 0, 25));
+    $merchantCity = strtoupper(substr(preg_replace('/[^A-Za-z0-9 ]/', '', $cidade), 0, 15));
+
+    $payload  = $mpInfo;
+    $payload .= $f("52", "0000");
+    $payload .= $f("53", "986");
+    $payload .= $txValue;
+    $payload .= $f("58", "BR");
+    $payload .= $f("59", $merchantName);
+    $payload .= $f("60", $merchantCity);
+    $unreserved = $f("05", $txid);
+    $payload .= $f("62", $unreserved);
+
+    $payloadForCrc = $payload . "6304";
+    $crc = strtoupper(crc16($payloadForCrc));
+    return $payloadForCrc . $crc;
+}
+
+/**
+ * CRC16-CCITT (polinomio 0x1021)
+ */
+function crc16($payload) {
+    $polynomial = 0x1021;
+    $crc = 0xFFFF;
+    $payloadBytes = [];
+    for ($i = 0; $i < strlen($payload); $i++) $payloadBytes[] = ord($payload[$i]);
+    foreach ($payloadBytes as $b) {
+        $crc ^= ($b << 8);
+        for ($i = 0; $i < 8; $i++) {
+            if (($crc & 0x8000) != 0) $crc = (($crc << 1) ^ $polynomial) & 0xFFFF;
+            else $crc = ($crc << 1) & 0xFFFF;
+        }
+    }
+    return str_pad(dechex($crc), 4, "0", STR_PAD_LEFT);
+}
+
+/**
+ * Envia QR (imagem) pro Telegram
+ */
+function enviarQrTelegram($chat_id, $payload, $caption = "") {
+    global $apiURL;
+    $urlQr = "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=" . urlencode($payload);
+    $post = [
+        'chat_id' => $chat_id,
+        'photo' => $urlQr,
+        'caption' => $caption
+    ];
+    file_get_contents($apiURL . "sendPhoto?" . http_build_query($post));
+}
+
 // PEGAR MENSAGENS
 $update = json_decode(file_get_contents("php://input"), true);
 // Permitir mensagens em grupos
@@ -803,9 +866,26 @@ $dominio = "gmail.com";              // domínio real que você controla
 $rand = substr(md5(uniqid((string)rand(), true)), 0, 8);
 $emailAleatorio = "{$prefix}+{$chat_id}_{$rand}@{$dominio}";
 
-// Gera o Pix usando o e-mail aleatório
+// Tenta gerar via Mercado Pago
 $codigoPix = gerarPix($totalComDesconto, $emailAleatorio);
 
+// Se falhou, gera o payload localmente (copia e cola) e envia QR
+if (!$codigoPix || strpos($codigoPix, "ERRO") !== false) {
+    $chavePix = "93e9ce6f-a9a6-4219-aa99-4be273117cb8"; // sua chave PIX real
+    $nomeMerchant = "JokerNF";         
+    $cidadeMerchant = "Rio de Janeiro";
+    $txid = $codigoRastreio;
+
+    $payload = buildPixPayload($chavePix, $nomeMerchant, $cidadeMerchant, $totalComDesconto, $txid);
+
+    // enviar QR e copiar o código pro usuário
+    enviarQrTelegram($chat_id, $payload, "💳 PIX (copia e cola) — escaneie ou use o código abaixo.");
+    sendMessage($chat_id, "🔹 Código (copia e cola): `{$payload}`\n\nUse valor R$" . number_format($totalComDesconto, 2, ',', '.'));
+} else {
+    // envio normal quando o Mercado Pago retorna o qr_code
+    enviarQrTelegram($chat_id, $codigoPix, "💳 Pix gerado pelo Mercado Pago — escaneie ou copie o código abaixo.");
+    sendMessage($chat_id, "🔹 Código (copia e cola): `{$codigoPix}`");
+}
 $resumo =
     "✅ *Formulário preenchido com sucesso!*\n\n" .
     "👤 Nome: {$dados['nome']}\n" .
