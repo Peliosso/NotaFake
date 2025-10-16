@@ -4,109 +4,6 @@ $token = "8362847658:AAHoF5LFmYDZdWPm9Umde9M5dqluhnpUl-g";
 $apiURL = "https://api.telegram.org/bot$token/";
 $cep_origem = "30140071"; // Belo Horizonte, MG
 
-function gerarPix($valor) {
-    $accessToken = "APP_USR-5980007914059821-091004-76b3148bb6f755868cdc791a58c0c292-2678667901"; // token MP
-    $url = "https://api.mercadopago.com/v1/payments";
-
-    // Garantir formato correto do valor
-    $valor = floatval(str_replace(',', '.', $valor));
-
-    $data = [
-        "transaction_amount" => $valor,
-        "description" => "Compra de saldo JokerNF",
-        "payment_method_id" => "pix",
-        "payer" => [
-            "email" => "jayvih125@gmail.com" // e-mail válido
-        ]
-    ];
-
-    $headers = [
-        "Content-Type: application/json",
-        "Authorization: Bearer " . $accessToken
-    ];
-
-    $ch = curl_init($url);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-    curl_setopt($ch, CURLOPT_POST, 1);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    $response = curl_exec($ch);
-    curl_close($ch);
-
-    $payment = json_decode($response, true);
-
-    // Debug: salvar resposta do MP se falhar
-    if (!isset($payment['point_of_interaction']['transaction_data']['qr_code'])) {
-        file_put_contents('erro_pix.log', date("Y-m-d H:i:s") . " - Erro gerar Pix: " . print_r($payment, true) . "\n", FILE_APPEND);
-        return "❌ ERRO AO GERAR PIX";
-    }
-
-    return $payment['point_of_interaction']['transaction_data']['qr_code'];
-}
-
-/**
- * Gera payload PIX (EMV) — copia e cola — e retorna string pronta.
- */
-function buildPixPayload($chave, $nome, $cidade, $valor, $txid = "0000") {
-    $f = function($id, $value) {
-        $len = str_pad(strlen($value), 2, "0", STR_PAD_LEFT);
-        return $id . $len . $value;
-    };
-    $gui = "br.gov.bcb.pix";
-    $merchantAccountInfo = $f("00", $gui) . $f("01", $chave);
-    $mpInfo = $f("26", $merchantAccountInfo);
-    $valor = number_format(floatval(str_replace(',', '.', $valor)), 2, '.', '');
-    $txValue = $f("54", $valor);
-    $merchantName = strtoupper(substr(preg_replace('/[^A-Za-z0-9 ]/', '', $nome), 0, 25));
-    $merchantCity = strtoupper(substr(preg_replace('/[^A-Za-z0-9 ]/', '', $cidade), 0, 15));
-
-    $payload  = $mpInfo;
-    $payload .= $f("52", "0000");
-    $payload .= $f("53", "986");
-    $payload .= $txValue;
-    $payload .= $f("58", "BR");
-    $payload .= $f("59", $merchantName);
-    $payload .= $f("60", $merchantCity);
-    $unreserved = $f("05", $txid);
-    $payload .= $f("62", $unreserved);
-
-    $payloadForCrc = $payload . "6304";
-    $crc = strtoupper(crc16($payloadForCrc));
-    return $payloadForCrc . $crc;
-}
-
-/**
- * CRC16-CCITT (polinomio 0x1021)
- */
-function crc16($payload) {
-    $polynomial = 0x1021;
-    $crc = 0xFFFF;
-    $payloadBytes = [];
-    for ($i = 0; $i < strlen($payload); $i++) $payloadBytes[] = ord($payload[$i]);
-    foreach ($payloadBytes as $b) {
-        $crc ^= ($b << 8);
-        for ($i = 0; $i < 8; $i++) {
-            if (($crc & 0x8000) != 0) $crc = (($crc << 1) ^ $polynomial) & 0xFFFF;
-            else $crc = ($crc << 1) & 0xFFFF;
-        }
-    }
-    return str_pad(dechex($crc), 4, "0", STR_PAD_LEFT);
-}
-
-/**
- * Envia QR (imagem) pro Telegram
- */
-function enviarQrTelegram($chat_id, $payload, $caption = "") {
-    global $apiURL;
-    $urlQr = "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=" . urlencode($payload);
-    $post = [
-        'chat_id' => $chat_id,
-        'photo' => $urlQr,
-        'caption' => $caption
-    ];
-    file_get_contents($apiURL . "sendPhoto?" . http_build_query($post));
-}
-
 // PEGAR MENSAGENS
 $update = json_decode(file_get_contents("php://input"), true);
 // Permitir mensagens em grupos
@@ -858,58 +755,31 @@ if (strpos($callback_query, "qtd_") === 0) {
     editMessage($chat_id, $message_id, "✅ Finalizando seu pedido...");
     sleep(1);
 
-$dados = $usuarios[$chat_id];
+    $dados = $usuarios[$chat_id];
+    $resumo =
+        "✅ *Formulário preenchido com sucesso!*\n\n" .
+        "👤 Nome: {$dados['nome']}\n" .
+        "🏠 Rua: {$dados['rua']}, Nº {$dados['numero']}\n" .
+        "📮 CEP: {$dados['cep']}\n" .
+        "🌆 Cidade: {$dados['cidade']} - {$dados['estado']}\n" .
+        "📍 Bairro: {$dados['bairro']}\n" .
+        "💵 Cédulas: {$dados['cedulas']}\n" .
+        "🔢 Quantidade: {$usuarios[$chat_id]['quantidade']}\n" .
+        "💰 Valor: R$" . number_format($preco, 2, ',', '.') . "\n" .
+        "🚛 Frete: R$" . number_format($frete, 2, ',', '.') . "\n" . 
+       (!empty($usuarios[$chat_id]["cupom"]) 
+    ? "🎟️ Desconto aplicado: {$cupons[$usuarios[$chat_id]['cupom']]['desconto']}%\n" 
+    : "") .
+        "💳 *Total a Pagar*: R$" . number_format($totalComDesconto, 2, ',', '.') . "\n\n" .
+        "📌 *Forma de pagamento:*\n".
+        "🔹 PIX: `1aebb1bd-10b7-435e-bd17-03adf4451088`\n\n" .
+        "📤 *Após o pagamento, envie o comprovante para*: @Fraudarei\n\n" .
+        "📦 *Código de rastreio do pedido:* `$codigoRastreio`\n" .
+        "Use o comando /status seguido do código para acompanhar seu pedido.";
 
-// --- GERA E-MAIL ALEATÓRIO AUTOMÁTICO PARA PIX ---
-$prefix = "pagamentos";              // prefixo da sua conta real
-$dominio = "gmail.com";              // domínio real que você controla
-$rand = substr(md5(uniqid((string)rand(), true)), 0, 8);
-$emailAleatorio = "{$prefix}+{$chat_id}_{$rand}@{$dominio}";
+    editMessage($chat_id, $message_id, $resumo);
 
-// Tenta gerar via Mercado Pago
-$codigoPix = gerarPix($totalComDesconto, $emailAleatorio);
-
-// Se falhou, gera o payload localmente (copia e cola) e envia QR
-if (!$codigoPix || strpos($codigoPix, "ERRO") !== false) {
-    $chavePix = "93e9ce6f-a9a6-4219-aa99-4be273117cb8"; // sua chave PIX real
-    $nomeMerchant = "JokerNF";         
-    $cidadeMerchant = "Rio de Janeiro";
-    $txid = $codigoRastreio;
-
-    $payload = buildPixPayload($chavePix, $nomeMerchant, $cidadeMerchant, $totalComDesconto, $txid);
-
-    // enviar QR e copiar o código pro usuário
-    enviarQrTelegram($chat_id, $payload, "💳 PIX (copia e cola) — escaneie ou use o código abaixo.");
-    sendMessage($chat_id, "🔹 Código (copia e cola): `{$payload}`\n\nUse valor R$" . number_format($totalComDesconto, 2, ',', '.'));
-} else {
-    // envio normal quando o Mercado Pago retorna o qr_code
-    enviarQrTelegram($chat_id, $codigoPix, "💳 Pix gerado pelo Mercado Pago — escaneie ou copie o código abaixo.");
-    sendMessage($chat_id, "🔹 Código (copia e cola): `{$codigoPix}`");
-}
-$resumo =
-    "✅ *Formulário preenchido com sucesso!*\n\n" .
-    "👤 Nome: {$dados['nome']}\n" .
-    "🏠 Rua: {$dados['rua']}, Nº {$dados['numero']}\n" .
-    "📮 CEP: {$dados['cep']}\n" .
-    "🌆 Cidade: {$dados['cidade']} - {$dados['estado']}\n" .
-    "📍 Bairro: {$dados['bairro']}\n" .
-    "💵 Cédulas: {$dados['cedulas']}\n" .
-    "🔢 Quantidade: {$usuarios[$chat_id]['quantidade']}\n" .
-    "💰 Valor: R$" . number_format($preco, 2, ',', '.') . "\n" .
-    "🚛 Frete: R$" . number_format($frete, 2, ',', '.') . "\n" . 
-    (!empty($usuarios[$chat_id]["cupom"]) 
-        ? "🎟️ Desconto aplicado: {$cupons[$usuarios[$chat_id]['cupom']]['desconto']}%\n" 
-        : "") .
-    "💳 *Total a Pagar*: R$" . number_format($totalComDesconto, 2, ',', '.') . "\n\n" .
-    "📌 *Forma de pagamento:*\n" .
-    "🔹 PIX gerado automaticamente: `$codigoPix`\n\n" .
-    "📤 *Após o pagamento, envie o comprovante para*: @Fraudarei\n\n" .
-    "📦 *Código de rastreio do pedido:* `$codigoRastreio`\n" .
-    "Use o comando /status seguido do código para acompanhar seu pedido.";
-
-editMessage($chat_id, $message_id, $resumo);
-
-unset($usuarios[$chat_id]);
-file_put_contents($usuariosFile, json_encode($usuarios));
+    unset($usuarios[$chat_id]);
+    file_put_contents($usuariosFile, json_encode($usuarios));
 }
 ?>
