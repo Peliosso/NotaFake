@@ -84,6 +84,95 @@ function calcularFrete($cep_destino, $peso = 1) {
     return rand(30, 50);
 }
 
+// Configuração do grupo e tópico onde será enviada a mensagem
+$target_chat_id = "-1002552180485";   // ID do grupo (começa com -100)
+$target_thread_id = null;             // coloque o ID do tópico, ou null
+
+// Caminho da imagem local
+$image_path = __DIR__ . "/img/promo.jpg";
+
+// Mensagem padrão (caso o usuário não envie nada depois do /enviar)
+$default_caption = "🚨 • Oferta especial nas notas falsas! Use o cupom: NF2025, e ganhe 20% de desconto em qualquer quantia.";
+$default_button_text = "🛒 • Ver Oferta";
+$default_button_url  = "t.me/notafalsa_bot";
+
+// ID do administrador autorizado (opcional, mas recomendado)
+$admin_id = 7926471341; // coloque seu ID numérico do Telegram
+
+// Função para enviar imagem com botão
+function sendPhoto($token, $chat_id, $thread_id, $image_path, $caption, $button_text, $button_url) {
+    $apiURL = "https://api.telegram.org/bot$token/sendPhoto";
+
+    if (!file_exists($image_path)) {
+        error_log("❌ Arquivo de imagem não encontrado: $image_path");
+        return;
+    }
+
+    $keyboard = [
+        "inline_keyboard" => [
+            [["text" => $button_text, "url" => $button_url]]
+        ]
+    ];
+
+    $post = [
+        "chat_id" => $chat_id,
+        "photo" => new CURLFile(realpath($image_path)),
+        "caption" => $caption,
+        "parse_mode" => "HTML",
+        "reply_markup" => json_encode($keyboard)
+    ];
+
+    if (!empty($thread_id)) {
+        $post["message_thread_id"] = (int)$thread_id;
+    }
+
+    $ch = curl_init($apiURL);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $post);
+    $response = curl_exec($ch);
+    curl_close($ch);
+    return $response;
+}
+
+// ============================
+// 🔹 Lê o update recebido do Telegram
+// ============================
+$update = json_decode(file_get_contents("php://input"), true);
+if (!$update) exit;
+
+$message = $update['message'] ?? null;
+if (!$message) exit;
+
+$chat_id = $message['chat']['id'];
+$text = trim($message['text'] ?? "");
+$from_id = $message['from']['id'] ?? null;
+
+// ============================
+// 🔹 Apenas o admin pode usar no PV
+// ============================
+if ($chat_id > 0) { // PV
+    if ($from_id != $admin_id) {
+        exit; // ignora mensagens de outros usuários
+    }
+
+    // Comando /enviar com texto opcional
+    if (strpos($text, "/enviar") === 0) {
+        // Exemplo: /enviar texto da legenda | https://meusite.com
+        $params = explode("|", str_replace("/enviar", "", $text));
+        $caption = trim($params[0]) ?: $default_caption;
+        $button_url = trim($params[1] ?? "") ?: $default_button_url;
+
+        sendPhoto($token, $target_chat_id, $target_thread_id, $image_path, $caption, $default_button_text, $button_url);
+
+        // confirma no PV
+        file_get_contents("https://api.telegram.org/bot$token/sendMessage?" . http_build_query([
+            "chat_id" => $chat_id,
+            "text" => "✅ Mensagem enviada no grupo com sucesso!"
+        ]));
+    }
+}
+
 // --- MENU PRINCIPAL /start ---
 if ($message == "/start") {
     $keyboard = [
