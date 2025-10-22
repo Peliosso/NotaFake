@@ -403,9 +403,10 @@ if (strpos($message, "/recado") === 0) {
     $safe_user = str_replace(["`","*","_","["], ["","","",""], $user_id);
     $safe_item = str_replace(["`","*","_","["], ["","","",""], $item);
 
-    $texto = "📢 *Recado*\n\n";
+    $texto = "🥳 • *Mais um!*\n\n";
     $texto .= "👤 Usuário: `{$safe_user}`\n";
     $texto .= "🛒 Acabou de adquirir: *{$safe_item}*";
+    $texto .= "💎 VIP: t.me/notafalsa_bot";
 
     // Envia para o grupo
     sendMessage($grupo_id, $texto);
