@@ -377,6 +377,44 @@ if ($message == "/info") {
     exit;
 }
 
+// --- COMANDO /recado ---
+// Uso: /recado 6124243 Notas
+if (strpos($message, "/recado") === 0) {
+    $admin_id = "7926471341"; // apenas admin pode usar — troque se quiser
+    if ($chat_id != $admin_id) {
+        sendMessage($chat_id, "❌ Você não tem permissão para enviar recados.");
+        exit;
+    }
+
+    // Divide em 3 partes: comando, user_id, resto (item com possíveis espaços)
+    $parts = preg_split('/\s+/', trim($message), 3);
+    if (count($parts) < 3 || empty($parts[1]) || empty($parts[2])) {
+        sendMessage($chat_id, "❌ Uso: /recado ID_DO_USUARIO ITEM\nEx: /recado 6124243 Notas Avançadas");
+        exit;
+    }
+
+    $user_id = $parts[1];
+    $item = $parts[2];
+
+    // Grupo de destino (ID fornecido por você)
+    $grupo_id = -1002552180485;
+
+    // Monta a mensagem (escape simples para Markdown)
+    $safe_user = str_replace(["`","*","_","["], ["","","",""], $user_id);
+    $safe_item = str_replace(["`","*","_","["], ["","","",""], $item);
+
+    $texto = "📢 *Recado*\n\n";
+    $texto .= "👤 Usuário: `{$safe_user}`\n";
+    $texto .= "🛒 Acabou de adquirir: *{$safe_item}*";
+
+    // Envia para o grupo
+    sendMessage($grupo_id, $texto);
+
+    // Confirmação pra quem executou
+    sendMessage($chat_id, "✅ Recado enviado para o grupo (ID: {$grupo_id}).");
+    exit;
+}
+
 // GERAR CUPOM (SOMENTE VOCÊ)
 if (strpos($message, "/gerarcupon") === 0) {
     if ($chat_id != "7926471341") {
