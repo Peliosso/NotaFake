@@ -404,7 +404,7 @@ if (strpos($message, "/recado") === 0) {
     $safe_item = str_replace(["`","*","_","["], ["","","",""], $item);
 
     $texto = "🥳 • *Mais um!*\n\n";
-    $texto .= "👤 Usuário: `{$safe_user}`\n";
+    $texto .= "👤 Usuário: `{$safe_user}***`\n";
     $texto .= "🛒 Acabou de adquirir: *{$safe_item}*";
 
     // Cria o botão (coloque seu link legítimo)
