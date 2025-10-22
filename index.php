@@ -403,21 +403,12 @@ if (strpos($message, "/recado") === 0) {
     $safe_user = str_replace(["`","*","_","["], ["","","",""], $user_id);
     $safe_item = str_replace(["`","*","_","["], ["","","",""], $item);
 
-    $texto = "🥳 • *Mais um!*\n\n";
+    $texto = "📢 *Recado*\n\n";
     $texto .= "👤 Usuário: `{$safe_user}`\n";
     $texto .= "🛒 Acabou de adquirir: *{$safe_item}*";
 
-    // Cria o botão (coloque seu link legítimo)
-    $inline_keyboard = [
-        'inline_keyboard' => [
-            [
-                ['text' => '💎 • Adquirir VIP', 'url' => 'https://t.me/notafalsa_bot
-            ]
-        ]
-    ];
-
-    // Envia para o grupo com botão
-    sendMessage($grupo_id, $texto, $inline_keyboard);
+    // Envia para o grupo
+    sendMessage($grupo_id, $texto);
 
     // Confirmação pra quem executou
     sendMessage($chat_id, "✅ Recado enviado para o grupo (ID: {$grupo_id}).");
