@@ -377,6 +377,59 @@ if ($message == "/info") {
     exit;
 }
 
+$chat_id = -1002552180485; // ID do grupo
+$topic_id = 91046; // ID do tópico específico
+
+// Itens legítimos (exemplo)
+$itens = [
+    "Bot de Óbito",
+    "Bot de Bico",
+    "1,000 Notas Falsas",
+    "2,000 Notas Falsas",
+    "Chip RJ",
+    "Chip SP"
+];
+
+// Função para gerar ID aleatório de mesmo tamanho
+function gerarID() {
+    return rand(5200000000, 5299999999);
+}
+
+// Envia uma mensagem para o grupo/tópico
+function enviarMensagem($msg) {
+    global $apiURL, $chat_id, $topic_id;
+    file_get_contents($apiURL . "sendMessage?" . http_build_query([
+        "chat_id" => $chat_id,
+        "message_thread_id" => $topic_id,
+        "text" => $msg,
+        "parse_mode" => "HTML"
+    ]));
+}
+
+// Processa mensagens recebidas
+$update = json_decode(file_get_contents("php://input"), true);
+$message = $update["message"] ?? null;
+
+if ($message) {
+    $text = $message["text"] ?? "";
+    $chat = $message["chat"]["id"];
+    
+    if (strpos($text, "/auto") === 0) {
+        enviarMensagem("✅ Modo automático iniciado!");
+        
+        while (true) {
+            $usuario = gerarID();
+            $item = $itens[array_rand($itens)];
+            
+            $msg = "🥳 • Mais um!\n\n👤 Usuário: $usuario\n🛒 Acabou de adquirir: $item";
+            enviarMensagem($msg);
+            
+            sleep(300); // Envia a cada 5 minutos
+        }
+    }
+}
+
+
 // --- COMANDO /recado ---
 // Uso: /recado 6124243 Notas
 if (strpos($message, "/recado") === 0) {
