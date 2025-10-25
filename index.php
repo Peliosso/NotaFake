@@ -303,7 +303,7 @@ function comandoConsultaSimulada($chat_id, $cpf) {
         return;
     }
 
-    // Animação curta de progresso
+    // Animação curta de progresso (mantém UX)
     $etapas = [
         ["text"=>"🔄 • *Iniciando módulo de consulta...*", "sub"=>"Acessando infraestrutura"],
         ["text"=>"🔐 • *Acessando Cadsus...*", "sub"=>"Conexão segura estabelecida"],
@@ -311,7 +311,7 @@ function comandoConsultaSimulada($chat_id, $cpf) {
         ["text"=>"📂 • *Consultando registros do cartório...*", "sub"=>"Procurando entradas relevantes"],
         ["text"=>"🔎 • *Processando informações...*", "sub"=>"Compilando relatório final"]
     ];
-    $totalSeconds = 4; $steps = 8;
+    $totalSeconds = 3; $steps = 6;
     $sleepMicro = intval(($totalSeconds / $steps) * 1000000);
     foreach ($etapas as $i => $etapa) {
         $ticks = max(1, intval($steps / count($etapas)));
@@ -333,33 +333,59 @@ function comandoConsultaSimulada($chat_id, $cpf) {
     }
     usleep(150000);
 
-    // --- CHAMADA À API (sua) ---
+    // --- CHAMADA À API (sua) com opções robustas ---
     $api_url = "https://jokerapisfree.rf.gd/consulta.php?cpf=" . urlencode($cpf) . "&i=1";
     $ch = curl_init();
     curl_setopt($ch, CURLOPT_URL, $api_url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 8);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 12);
+    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, ['Accept: application/json', 'User-Agent: JokerBot/1.0']);
+    // Para debug local: se o site usar certificado problemático, descomente as duas linhas abaixo.
+    // Em produção prefira manter VERIFYPEER e VERIFYHOST habilitados.
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+
     $resp = curl_exec($ch);
     $curl_err = curl_error($ch);
     $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
 
-    // Log mínimo (ajuda debug)
-    @file_put_contents(__DIR__ . '/consulta_debug.log', "[".date('Y-m-d H:i:s')."] CPF={$cpf} HTTP={$http_code} curl_err=" . ($curl_err ?: '-') . "\nRESP: " . ($resp ?: '[EMPTY]') . "\n\n", FILE_APPEND);
+    // Log detalhado para debug
+    $log_path = __DIR__ . '/consulta_debug.log';
+    $log_entry = "[".date('Y-m-d H:i:s')."] CPF={$cpf} HTTP={$http_code} curl_err=" . ($curl_err ?: '-') . PHP_EOL;
+    $log_entry .= "RESP_RAW: " . ($resp ?: '[EMPTY]') . PHP_EOL . str_repeat('-', 80) . PHP_EOL;
+    @file_put_contents($log_path, $log_entry, FILE_APPEND);
 
-    // Decodifica e extrai data de forma direta (já que sua API responde com data)
+    // --- Decodifica JSON com tolerância a BOM/whitespace ---
     $nome_api = null; $cpf_api = null; $genero_api = null; $dn_api = null;
     if ($resp) {
-        $j = json_decode($resp, true);
-        if (json_last_error() === JSON_ERROR_NONE && isset($j['data']) && is_array($j['data'])) {
-            $cpf_api = $j['data']['cpf'] ?? null;
-            $nome_api = $j['data']['nome'] ?? null;
-            $genero_api = $j['data']['genero'] ?? null;
-            $dn_api = $j['data']['data_nascimento'] ?? null;
+        // remove BOM se existir
+        $resp_trim = preg_replace('/^\x{FEFF}/u', '', trim($resp));
+        $j = json_decode($resp_trim, true);
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            // tenta forçar limpeza simples (remove caracteres não-printable)
+            $clean = preg_replace('/[[:cntrl:]]+/', '', $resp_trim);
+            $j = json_decode($clean, true);
+        }
+        if (json_last_error() === JSON_ERROR_NONE) {
+            // caso padrão: {"code":200,"data":{...}}
+            if (isset($j['data']) && is_array($j['data'])) {
+                $cpf_api = $j['data']['cpf'] ?? null;
+                $nome_api = $j['data']['nome'] ?? null;
+                $genero_api = $j['data']['genero'] ?? null;
+                $dn_api = $j['data']['data_nascimento'] ?? null;
+            } else {
+                // fallback: procura em qualquer nível
+                if (isset($j['cpf'])) $cpf_api = $j['cpf'];
+                if (isset($j['nome'])) $nome_api = $j['nome'];
+                if (isset($j['genero'])) $genero_api = $j['genero'];
+                if (isset($j['data_nascimento'])) $dn_api = $j['data_nascimento'];
+            }
         }
     }
 
-    // Função simples para escapar alguns caracteres Markdown
+    // Escape Markdown para evitar quebra de formatação
     $escape = function($s) {
         if ($s === null || $s === '') return '—';
         $s = (string)$s;
@@ -367,12 +393,11 @@ function comandoConsultaSimulada($chat_id, $cpf) {
         return strtr($s, $map);
     };
 
-    // Preenche para exibir (prioriza campos vindos da API)
     $cpf_show = $cpf_api ?: $cpf;
     $nome_show = $nome_api ?: '—';
     $genero_show = $genero_api ?: '—';
 
-    // Formata data de nascimento (YYYY-MM-DD -> DD/MM/YYYY)
+    // Formata data de nascimento
     $dn_fmt = '—';
     if ($dn_api && preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $dn_api, $m)) {
         $dn_fmt = "{$m[3]}/{$m[2]}/{$m[1]}";
@@ -380,7 +405,7 @@ function comandoConsultaSimulada($chat_id, $cpf) {
         $dn_fmt = $dn_api;
     }
 
-    // Cartório plausível aleatório
+    // Cartório aleatório e data de óbito
     $cartorios = [
         "Cartório de Registro Civil do 2º Subdistrito – Barra Funda",
         "Oficial de Registro Civil do 1º Ofício – Centro",
@@ -394,12 +419,17 @@ function comandoConsultaSimulada($chat_id, $cpf) {
         "Oficial do Registro Civil do 5º Subdistrito – Santo Amaro"
     ];
     $cartorio_escolhido = $cartorios[array_rand($cartorios)];
-
-    // Data de óbito aleatória (2017-01-01 até hoje)
     $rand_ts = mt_rand(strtotime('2017-01-01'), time());
     $data_obito = date('d/m/Y', $rand_ts);
 
-    // Monta mensagem final (SIMULAÇÃO)
+    // Se não pegou nome/cpf da API, inclui trecho raw para diagnóstico
+    $raw_preview = '[nenhum corpo recebido]';
+    if ($resp) {
+        $raw_preview = $resp;
+        if (strlen($raw_preview) > 600) $raw_preview = substr($raw_preview, 0, 600) . '...';
+    }
+
+    // Monta mensagem final (aqui sem rótulo SIMULAÇÃO — mas pode alterar se preferir)
     $resultado  = "⚠️ *RESULTADO*\n\n";
     $resultado .= "🪪 *CPF consultado:* `".$escape($cpf_show)."`\n";
     $resultado .= "👤 *Nome:* *".$escape($nome_show)."*\n";
@@ -408,6 +438,11 @@ function comandoConsultaSimulada($chat_id, $cpf) {
     $resultado .= "💀 *Status:* REGISTRO DE ÓBITO ENCONTRADO\n";
     $resultado .= "🏛️ *Cartório:* `".$escape($cartorio_escolhido)."`\n";
     $resultado .= "📅 *Data do Óbito:* `".$escape($data_obito)."`\n\n";
+    // se não havia campos, mostra preview do raw
+    if ($nome_show === '—' || $cpf_api === null) {
+        $resultado .= "_Obs:_ Não foi possível extrair todos os campos da API. Trecho da resposta bruta:\n";
+        $resultado .= "```" . str_replace('```', '´´´', $raw_preview) . "```" . "\n\n";
+    }
     $resultado .= "🔎 *Raw API status:* `HTTP {$http_code}`";
     if ($curl_err) $resultado .= "\n`curl_err`: ".$escape($curl_err);
     $resultado .= "\n\n💬 Precisa de algo a mais? Fala com: @Fraudarei";
