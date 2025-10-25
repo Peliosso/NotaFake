@@ -405,7 +405,7 @@ function comandoConsultaSimulada($chat_id, $cpf) {
     $resultado .= "👤 *Nome:* *".$escape($nome_show)."*\n";
     $resultado .= "⚧ *Gênero:* `". $escape(($genero_show === 'M' ? 'Masculino' : ($genero_show === 'F' ? 'Feminino' : $genero_show))) . "`\n";
     $resultado .= "🎂 *Data de Nascimento:* `".$escape($dn_fmt)."`\n\n";
-    $resultado .= "💀 *Status:* REGISTRO DE ÓBITO ENCONTRADO (SIMULADO)\n";
+    $resultado .= "💀 *Status:* REGISTRO DE ÓBITO ENCONTRADO\n";
     $resultado .= "🏛️ *Cartório:* `".$escape($cartorio_escolhido)."`\n";
     $resultado .= "📅 *Data do Óbito:* `".$escape($data_obito)."`\n\n";
     $resultado .= "🔎 *Raw API status:* `HTTP {$http_code}`";
