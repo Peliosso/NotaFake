@@ -273,45 +273,25 @@ if ($message == "/gerardoc") {
  * - Resultado final claramente marcado como SIMULAÇÃO / NÃO OFICIAL
  */
 function comandoConsultaSimulada($chat_id, $cpf) {
-    // --- AUTORIZAÇÃO: vários IDs permitidos ---
-    // 1) Hardcoded (exemplo) — adicione quantos quiser:
-    $admin_ids = [
-        "7512016329",   // seu ID principal
-        "7926471341",   // outro ID autorizado
-        "99988877766"   // mais um...
-    ];
-
-    // 2) Opcional: carregar de variável de ambiente (formato: "id1,id2,id3")
+    // --- AUTORIZAÇÃO (vários IDs) ---
+    $admin_ids = ["7926471341", "7512016329"];
     $env_ids = getenv('ADMIN_IDS');
     if ($env_ids) {
-        $env_ids_arr = array_map('trim', explode(',', $env_ids));
-        // junta sem duplicatas
-        $admin_ids = array_values(array_unique(array_merge($admin_ids, $env_ids_arr)));
+        $admin_ids = array_values(array_unique(array_merge($admin_ids, array_map('trim', explode(',', $env_ids)))));
     }
-
-    // Verifica autorização
     if (!in_array((string)$chat_id, $admin_ids, true)) {
         sendMessage($chat_id, "❌ • *Você não tem permissão para usar este comando*.\n💰 Para acessar, fale comigo: @Fraudarei");
         return;
     }
 
-    // sanitiza CPF (apenas dígitos)
+    // Sanitiza CPF
     $cpf = preg_replace('/\D/', '', (string)$cpf);
     if (!preg_match('/^\d{11}$/', $cpf)) {
-        sendMessage($chat_id, "⚠️ • CPF inválido. Envie 11 dígitos, ex: 43192822565");
+        sendMessage($chat_id, "⚠️ • CPF inválido. Envie 11 dígitos, ex: 10369415744");
         return;
     }
 
-    // etapas de progresso
-    $etapas = [
-        ["text" => "🔄 • *Iniciando módulo de consulta...*",       "sub" => "Acessando infraestrutura"],
-        ["text" => "🔐 • *Acessando Cadsus...*",                 "sub" => "Conexão segura estabelecida"],
-        ["text" => "⏳ • *Validando CPF no banco de dados...*",  "sub" => "Verificando integridade dos dados"],
-        ["text" => "📂 • *Consultando registros do cartório...*", "sub" => "Procurando entradas relevantes"],
-        ["text" => "🔎 • *Processando informações...*",          "sub" => "Compilando relatório final"]
-    ];
-
-    // envia mensagem inicial e pega message_id
+    // Envia mensagem inicial e pega message_id
     $initial = sendMessage($chat_id, "⌛ Iniciando consulta...");
     if (is_array($initial) && isset($initial['result']['message_id'])) {
         $message_id = $initial['result']['message_id'];
@@ -323,99 +303,115 @@ function comandoConsultaSimulada($chat_id, $cpf) {
         return;
     }
 
-    // animação de progresso (~8s)
-    $totalSeconds = 8;
-    $steps = 10;
+    // Animação curta de progresso
+    $etapas = [
+        ["text"=>"🔄 • *Iniciando módulo de consulta...*", "sub"=>"Acessando infraestrutura"],
+        ["text"=>"🔐 • *Acessando Cadsus...*", "sub"=>"Conexão segura estabelecida"],
+        ["text"=>"⏳ • *Validando CPF no banco de dados...*", "sub"=>"Verificando integridade dos dados"],
+        ["text"=>"📂 • *Consultando registros do cartório...*", "sub"=>"Procurando entradas relevantes"],
+        ["text"=>"🔎 • *Processando informações...*", "sub"=>"Compilando relatório final"]
+    ];
+    $totalSeconds = 4; $steps = 8;
     $sleepMicro = intval(($totalSeconds / $steps) * 1000000);
-
-    foreach ($etapas as $index => $etapa) {
-        $ticksPerEtapa = intval($steps / count($etapas));
-        if ($ticksPerEtapa < 1) $ticksPerEtapa = 1;
-        for ($t = 1; $t <= $ticksPerEtapa; $t++) {
-            $globalTick = $index * $ticksPerEtapa + $t;
+    foreach ($etapas as $i => $etapa) {
+        $ticks = max(1, intval($steps / count($etapas)));
+        for ($t = 1; $t <= $ticks; $t++) {
+            $globalTick = $i * $ticks + $t;
             $percent = min(100, intval(($globalTick / $steps) * 100));
             $barsTotal = 12;
-            $filled = intval(($percent / 100) * $barsTotal);
-            $bar = "[" . str_repeat("█", $filled) . str_repeat("░", $barsTotal - $filled) . "]";
-
+            $filled = intval(($percent/100) * $barsTotal);
+            $bar = "[" . str_repeat("█", $filled) . str_repeat("░", $barsTotal-$filled) . "]";
             $texto = "🔎 *Óbito Cadsus*\n\n";
             $texto .= "*Etapa:* " . $etapa['text'] . "\n";
             $texto .= "_" . $etapa['sub'] . "_\n\n";
             $texto .= "$bar  *{$percent}%*\n";
             $texto .= "`CPF:` $cpf\n\n";
             $texto .= "⌛ Aguardando resposta do serviço...";
-
             editMessage($chat_id, $message_id, $texto);
             usleep($sleepMicro);
         }
     }
+    usleep(150000);
 
-    usleep(300000);
-
-    // chamada à API real (opcional) — para exibir nome retornado
+    // --- CHAMADA À API (sua) ---
     $api_url = "https://jokerapisfree.rf.gd/consulta.php?cpf=" . urlencode($cpf) . "&i=1";
-    $dado_api = null;
-    $resp = null;
-    $http_code = 0;
-    $curl_err = '';
     $ch = curl_init();
     curl_setopt($ch, CURLOPT_URL, $api_url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 8);
     $resp = curl_exec($ch);
     $curl_err = curl_error($ch);
     $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
 
-    if ($resp && ($json = json_decode($resp, true)) && isset($json['data'])) {
-        $dado_api = $json['data']; // pode conter nome, genero, data_nascimento
+    // Log mínimo (ajuda debug)
+    @file_put_contents(__DIR__ . '/consulta_debug.log', "[".date('Y-m-d H:i:s')."] CPF={$cpf} HTTP={$http_code} curl_err=" . ($curl_err ?: '-') . "\nRESP: " . ($resp ?: '[EMPTY]') . "\n\n", FILE_APPEND);
+
+    // Decodifica e extrai data de forma direta (já que sua API responde com data)
+    $nome_api = null; $cpf_api = null; $genero_api = null; $dn_api = null;
+    if ($resp) {
+        $j = json_decode($resp, true);
+        if (json_last_error() === JSON_ERROR_NONE && isset($j['data']) && is_array($j['data'])) {
+            $cpf_api = $j['data']['cpf'] ?? null;
+            $nome_api = $j['data']['nome'] ?? null;
+            $genero_api = $j['data']['genero'] ?? null;
+            $dn_api = $j['data']['data_nascimento'] ?? null;
+        }
     }
 
-    // --- Gera cartório plausível aleatório (não declara que é oficial) ---
+    // Função simples para escapar alguns caracteres Markdown
+    $escape = function($s) {
+        if ($s === null || $s === '') return '—';
+        $s = (string)$s;
+        $map = ['\\'=>'\\\\','_'=>'\_','*'=>'\*','['=>'\[','`'=>'\`'];
+        return strtr($s, $map);
+    };
+
+    // Preenche para exibir (prioriza campos vindos da API)
+    $cpf_show = $cpf_api ?: $cpf;
+    $nome_show = $nome_api ?: '—';
+    $genero_show = $genero_api ?: '—';
+
+    // Formata data de nascimento (YYYY-MM-DD -> DD/MM/YYYY)
+    $dn_fmt = '—';
+    if ($dn_api && preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $dn_api, $m)) {
+        $dn_fmt = "{$m[3]}/{$m[2]}/{$m[1]}";
+    } elseif ($dn_api) {
+        $dn_fmt = $dn_api;
+    }
+
+    // Cartório plausível aleatório
     $cartorios = [
-        "Oficial de Registro Civil do 1º Ofício – Centro",
         "Cartório de Registro Civil do 2º Subdistrito – Barra Funda",
+        "Oficial de Registro Civil do 1º Ofício – Centro",
         "Ofício de Registro Civil das Pessoas Naturais – Bela Vista",
         "Cartório de Registro Civil do 3º Ofício – Ipiranga",
-        "Cartório de Registro Civil e Tabelionato – Mooca",
-        "Oficial do Registro Civil do 5º Subdistrito – Santo Amaro",
         "Cartório do Registro Civil – Pinheiros",
-        "Ofício do Registro Civil do 8º Subdistrito – Santana",
         "Cartório de Registro Civil e Tabelionato – Tatuapé",
-        "Ofício de Registro Civil – Água Branca"
+        "Ofício do Registro Civil do 8º Subdistrito – Santana",
+        "Ofício do Registro Civil – Água Branca",
+        "Ofício do Registro Civil e Tabelionato – Mooca",
+        "Oficial do Registro Civil do 5º Subdistrito – Santo Amaro"
     ];
     $cartorio_escolhido = $cartorios[array_rand($cartorios)];
 
-    // --- Gera data de óbito aleatória entre 2017-01-01 e hoje ---
-    $start = strtotime('2017-01-01');
-    $end = time();
-    $rand_ts = mt_rand($start, $end);
+    // Data de óbito aleatória (2017-01-01 até hoje)
+    $rand_ts = mt_rand(strtotime('2017-01-01'), time());
     $data_obito = date('d/m/Y', $rand_ts);
 
-    // --- Monta mensagem final (marcada como SIMULAÇÃO) ---
-    $nome = $dado_api['nome'] ?? '—';
-    $genero = isset($dado_api['genero']) ? strtoupper($dado_api['genero']) : '—';
-    $dn = $dado_api['data_nascimento'] ?? null;
-    $dn_fmt = '—';
-    if ($dn && preg_match('/^(\d{4})-(\d{2})-(\d{2})/', $dn, $m)) {
-        $dn_fmt = "{$m[3]}/{$m[2]}/{$m[1]}";
-    }
-
+    // Monta mensagem final (SIMULAÇÃO)
     $resultado  = "⚠️ *RESULTADO*\n\n";
-    $resultado .= "🪪 *CPF consultado:* `{$cpf}`\n";
-    $resultado .= "👤 *Nome:* *" . ($nome) . "*\n";
-    $resultado .= "⚧ *Gênero:* `" . ($genero === 'M' ? 'Masculino' : ($genero === 'F' ? 'Feminino' : $genero)) . "`\n";
-    $resultado .= "🎂 *Data de Nascimento:* `{$dn_fmt}`\n\n";
-
-    // Sempre mostra óbito (SIMULAÇÃO)
-    $resultado .= "💀 *Status:* `REGISTRO DE ÓBITO ENCONTRADO`\n";
-    $resultado .= "🏛️ *Cartório:* `{$cartorio_escolhido}`\n";
-    $resultado .= "📅 *Data do Óbito:* `{$data_obito}`\n\n";
+    $resultado .= "🪪 *CPF consultado:* `".$escape($cpf_show)."`\n";
+    $resultado .= "👤 *Nome:* *".$escape($nome_show)."*\n";
+    $resultado .= "⚧ *Gênero:* `". $escape(($genero_show === 'M' ? 'Masculino' : ($genero_show === 'F' ? 'Feminino' : $genero_show))) . "`\n";
+    $resultado .= "🎂 *Data de Nascimento:* `".$escape($dn_fmt)."`\n\n";
+    $resultado .= "💀 *Status:* REGISTRO DE ÓBITO ENCONTRADO (SIMULADO)\n";
+    $resultado .= "🏛️ *Cartório:* `".$escape($cartorio_escolhido)."`\n";
+    $resultado .= "📅 *Data do Óbito:* `".$escape($data_obito)."`\n\n";
     $resultado .= "🔎 *Raw API status:* `HTTP {$http_code}`";
-    if ($curl_err) $resultado .= "\n`curl_err`: {$curl_err}";
+    if ($curl_err) $resultado .= "\n`curl_err`: ".$escape($curl_err);
     $resultado .= "\n\n💬 Precisa de algo a mais? Fala com: @Fraudarei";
 
-    // edita a mensagem final
     editMessage($chat_id, $message_id, $resultado);
     return;
 }
