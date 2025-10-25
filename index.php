@@ -283,7 +283,7 @@ function comandoConsultaSimulada($chat_id, $cpf) {
     // Mensagens de etapa (texto que aparecerá durante a edição)
     $etapas = [
         ["text" => "🔄 • *Iniciando módulo de consulta...*",       "sub" => "Acessando infraestrutura"],
-        ["text" => "🔐 • *Acessando Receita...*",                 "sub" => "Conexão segura estabelecida"],
+        ["text" => "🔐 • *Acessando Cadsus...*",                 "sub" => "Conexão segura estabelecida"],
         ["text" => "⏳ • *Validando CPF no banco de dados...*",  "sub" => "Verificando integridade dos dados"],
         ["text" => "📂 • *Consultando registros do cartório...*", "sub" => "Procurando entradas relevantes"],
         ["text" => "🔎 • *Processando informações...*",          "sub" => "Compilando relatório final"]
@@ -325,7 +325,7 @@ function comandoConsultaSimulada($chat_id, $cpf) {
             $bar = "[" . str_repeat("█", $filled) . str_repeat("░", $barsTotal - $filled) . "]";
 
             // Texto bonito com subtítulo e barra
-            $texto = "🔎 *Óbito Receita Federal*\n\n";
+            $texto = "🔎 *Óbito Cadsus*\n\n";
             $texto .= "*Etapa:* " . $etapa['text'] . "\n";
             $texto .= "_" . $etapa['sub'] . "_\n\n";
             $texto .= "$bar  *{$percent}%*\n";
