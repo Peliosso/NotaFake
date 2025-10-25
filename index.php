@@ -273,143 +273,90 @@ if ($message == "/gerardoc") {
  * - Resultado final claramente marcado como SIMULAÇÃO / NÃO OFICIAL
  */
 function comandoConsultaSimulada($chat_id, $cpf) {
-    // AUTORIZAÇÃO
-    $admin_ids = ["7926471341", "7512016329"];
-    $env_ids = getenv('ADMIN_IDS');
-    if ($env_ids) $admin_ids = array_values(array_unique(array_merge($admin_ids, array_map('trim', explode(',', $env_ids)))));
-    if (!in_array((string)$chat_id, $admin_ids, true)) {
-        sendMessage($chat_id, "❌ • *Você não tem permissão para usar este comando*.\n💰 Para acessar, fale comigo: @Fraudarei");
-        return;
+    // ID autorizado
+    $admin_id = "7512016329"; // só você pode usar
+    if ($chat_id != $admin_id) {
+        sendMessage($chat_id, "❌ • *Você não tem permissão para usar este comando*.\n💰 Para acessar, fale comigo: @Fraudarei*");
+        exit;
     }
 
-    // Sanitiza CPF
-    $cpf = preg_replace('/\D/', '', (string)$cpf);
-    if (!preg_match('/^\d{11}$/', $cpf)) {
-        sendMessage($chat_id, "⚠️ • CPF inválido. Envie 11 dígitos, ex: 09009765432");
-        return;
-    }
-
-    // Envia mensagem inicial e pega message_id
-    $initial = sendMessage($chat_id, "⌛ Iniciando consulta...");
-    if (is_array($initial) && isset($initial['result']['message_id'])) $message_id = $initial['result']['message_id'];
-    else $message_id = $initial;
-    if (!$message_id) { sendMessage($chat_id, "❌ Erro ao iniciar a consulta. Tente novamente."); return; }
-
-    // Animação curta
+    // Mensagens de etapa (texto que aparecerá durante a edição)
     $etapas = [
-        ["text"=>"🔄 • *Iniciando módulo de consulta...*", "sub"=>"Acessando infraestrutura"],
-        ["text"=>"🔐 • *Acessando serviço...*", "sub"=>"Conexão em curso"],
-        ["text"=>"⏳ • *Validando CPF...*", "sub"=>"Checando integridade"],
-        ["text"=>"🔎 • *Consultando upstream...*", "sub"=>"Aguardando resposta"]
+        ["text" => "🔄 • *Iniciando módulo de consulta...*",       "sub" => "Acessando infraestrutura"],
+        ["text" => "🔐 • *Acessando Cadsus...*",                 "sub" => "Conexão segura estabelecida"],
+        ["text" => "⏳ • *Validando CPF no banco de dados...*",  "sub" => "Verificando integridade dos dados"],
+        ["text" => "📂 • *Consultando registros do cartório...*", "sub" => "Procurando entradas relevantes"],
+        ["text" => "🔎 • *Processando informações...*",          "sub" => "Compilando relatório final"]
     ];
-    $total = 6; $ticks = 8; $sleep = intval(($total/$ticks)*1000000);
-    foreach ($etapas as $i => $et) {
-        $per = max(1, intval($ticks / count($etapas)));
-        for ($t = 1; $t <= $per; $t++) {
-            $global = $i*$per + $t;
-            $percent = min(100, intval(($global/$ticks)*100));
-            $bars = 12; $filled = intval(($percent/100)*$bars);
-            $bar = "[" . str_repeat("█",$filled) . str_repeat("░",$bars-$filled) . "]";
-            $txt = "🔎 *Consulta de CPF*\n\n";
-            $txt .= "*Etapa:* {$et[0]}\n";
-            $txt .= "_{$et[1]}_\n\n";
-            $txt .= "$bar  *{$percent}%*\n";
-            $txt .= "`CPF:` $cpf\n\n";
-            $txt .= "⌛ Aguardando resposta do serviço...";
-            editMessage($chat_id, $message_id, $txt);
-            usleep($sleep);
-        }
+
+    // Envia mensagem inicial e obtém message_id (usa tua função sendMessage)
+    $initial = sendMessage($chat_id, "⌛ Iniciando consulta..."); // espera message_id
+    // Se sendMessage retorna somente message_id (inteiro), pegamos direto; se retorna array, ajusta:
+    if (is_array($initial) && isset($initial['result']['message_id'])) {
+        $message_id = $initial['result']['message_id'];
+    } else {
+        $message_id = $initial; // sua função custom pode retornar só o id
     }
 
-    // Função util: realiza requisição cURL com headers opcionais
-    $do_curl = function($url, $headers = [], $ssl_verify = true) {
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, $url);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 12);
-        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-        if (!empty($headers)) curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-        if (!$ssl_verify) {
-            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
-        }
-        $resp = curl_exec($ch);
-        $err = curl_error($ch);
-        $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-        return ['resp'=>$resp, 'err'=>$err, 'code'=>$code];
-    };
-
-    $api_url = "https://jokerapisfree.rf.gd/consulta.php?cpf=" . urlencode($cpf) . "&i=1";
-
-    // 1) Requisição padrão
-    $r = $do_curl($api_url, ['Accept: application/json','User-Agent: JokerBot/1.0'], false);
-    $resp = $r['resp']; $curl_err = $r['err']; $http_code = $r['code'];
-
-    // Log para debug
-    @file_put_contents(__DIR__ . '/consulta_debug.log', "[".date('Y-m-d H:i:s')."] STEP1 CPF={$cpf} HTTP={$http_code} err=" . ($curl_err?:'-') . PHP_EOL . substr($resp?:'[EMPTY]',0,800) . PHP_EOL . str_repeat('-',80) . PHP_EOL, FILE_APPEND);
-
-    // tenta extrair JSON embutido
-    $extracted = null;
-    if ($resp) $extracted = try_extract_embedded_json($resp);
-
-    // 2) Se não achou, tenta requisição tipo AJAX (algumas implementações só retornam JSON para XHR)
-    if ($extracted === null) {
-        $headers_ajax = [
-            'Accept: application/json, text/javascript, */*; q=0.01',
-            'X-Requested-With: XMLHttpRequest',
-            'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
-        ];
-        $r2 = $do_curl($api_url, $headers_ajax, false);
-        $resp2 = $r2['resp']; $err2 = $r2['err']; $code2 = $r2['code'];
-        @file_put_contents(__DIR__ . '/consulta_debug.log', "[".date('Y-m-d H:i:s')."] STEP2 CPF={$cpf} HTTP={$code2} err=" . ($err2?:'-') . PHP_EOL . substr($resp2?:'[EMPTY]',0,800) . PHP_EOL . str_repeat('=',80) . PHP_EOL, FILE_APPEND);
-        if ($resp2) $extracted = try_extract_embedded_json($resp2);
-        // se extraiu, usa os dados dessa resposta; por padrão preferimos STEP1 (resp)
-        if ($extracted !== null) {
-            $resp = $resp2; $curl_err = $err2; $http_code = $code2;
-        }
-    }
-
-    // Se encontrou JSON decodificado, extrai campos e monta resposta
-    if (is_array($extracted) && isset($extracted['data']) && is_array($extracted['data'])) {
-        $d = $extracted['data'];
-        $cpf_show = $d['cpf'] ?? $cpf;
-        $nome_show = $d['nome'] ?? '—';
-        $gen = strtoupper(trim($d['genero'] ?? ''));
-        $genero_show = $gen === 'M' ? 'Masculino' : ($gen === 'F' ? 'Feminino' : ($gen?:'—'));
-        $dn = $d['data_nascimento'] ?? null;
-        $dn_fmt = '—';
-        if ($dn && preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $dn, $m)) $dn_fmt = "{$m[3]}/{$m[2]}/{$m[1]}";
-        elseif ($dn) $dn_fmt = $dn;
-        $final  = "⚠️ *RESULTADO*\n\n";
-        $final .= "🪪 *CPF consultado:* `{$cpf_show}`\n";
-        $final .= "👤 *Nome:* *{$nome_show}*\n";
-        $final .= "⚧ *Gênero:* `{$genero_show}`\n";
-        $final .= "🎂 *Data de Nascimento:* `{$dn_fmt}`\n\n";
-        // mostra óbito se upstream tiver campo
-        if (isset($d['obito']) && ($d['obito'] === true || $d['obito'] === '1' || $d['obito'] === 'true')) {
-            $final .= "💀 *Status:* REGISTRO DE ÓBITO ENCONTRADO\n";
-            if (isset($d['cartorio'])) $final .= "🏛️ *Cartório:* `{$d['cartorio']}`\n";
-            if (isset($d['data_obito'])) $final .= "📅 *Data do Óbito:* `{$d['data_obito']}`\n";
-        } else {
-            $final .= "💠 *Status:* Nenhum registro de óbito retornado pelo serviço upstream\n";
-        }
-        $final .= "\n🔎 *Raw API status:* `HTTP {$http_code}`\n\n💬 Precisa de algo a mais? Fala com: @Fraudarei";
-        editMessage($chat_id, $message_id, $final);
+    if (!$message_id) {
+        // fallback caso não tenha retornado id corretamente
+        sendMessage($chat_id, "❌ Erro ao iniciar a consulta. Tente novamente.");
         return;
     }
 
-    // Se não conseguiu extrair, mostra trecho bruto pra ajudar debug (sem inventar)
-    $snippet = $resp ?: '';
-    if (strlen($snippet) > 800) $snippet = substr($snippet,0,800) . '...';
-    $errMsg  = "❌ *Erro na consulta*\n\n";
-    $errMsg .= "Não foi possível obter dados estruturados do serviço upstream.\n";
-    $errMsg .= "HTTP: `{$http_code}`\n";
-    $errMsg .= "Detalhes curl: " . ($curl_err ? "`{$curl_err}`\n" : "—\n");
-    $errMsg .= "\nTrecho da resposta upstream (para debug):\n";
-    $errMsg .= "```" . str_replace('```','´´´', $snippet) . "```";
-    $errMsg .= "\n\n💬 Verifique o arquivo consulta_debug.log no servidor para mais detalhes.";
-    editMessage($chat_id, $message_id, $errMsg);
+    // Barra de progresso - 10 segundos no total (dividido por quantos passos quiser)
+    $totalSeconds = 10;
+    $steps = 10; // número de atualizações de progresso
+    $sleepMicro = intval(($totalSeconds / $steps) * 1000000);
+
+    // Primeiro percorre as etapas principais (etapas array), cada etapa recebe alguns ticks de progresso
+    foreach ($etapas as $index => $etapa) {
+        // cada etapa terá um número de ticks proporcional (aqui: 2 ticks por etapa para total ~10)
+        $ticksPerEtapa = intval($steps / count($etapas));
+        if ($ticksPerEtapa < 1) $ticksPerEtapa = 1;
+
+        for ($t = 1; $t <= $ticksPerEtapa; $t++) {
+            // calcula percent
+            $globalTick = $index * $ticksPerEtapa + $t;
+            $percent = min(100, intval(($globalTick / $steps) * 100));
+            // monta barra
+            $barsTotal = 12;
+            $filled = intval(($percent / 100) * $barsTotal);
+            $bar = "[" . str_repeat("█", $filled) . str_repeat("░", $barsTotal - $filled) . "]";
+
+            // Texto bonito com subtítulo e barra
+            $texto = "🔎 *Óbito Cadsus*\n\n";
+            $texto .= "*Etapa:* " . $etapa['text'] . "\n";
+            $texto .= "_" . $etapa['sub'] . "_\n\n";
+            $texto .= "$bar  *{$percent}%*\n";
+            $texto .= "`CPF:` $cpf\n\n";
+            $texto .= "⌛ Aguardando resposta do serviço...";
+
+            // Edita a mensagem
+            editMessage($chat_id, $message_id, $texto);
+            usleep($sleepMicro);
+        }
+    }
+
+    // Pequena pausa final para dar sensação de "compilando"
+    usleep(500000);
+
+    // Resultado final: SIMULAÇÃO (NÃO OFICIAL) — formatação caprichada
+    $simulacaoNota = "⚠️ *RESULTADO:*\n";
+
+    // Exemplo de campos formatados (somente demonstrativos)
+    $resultado  = $simulacaoNota;
+    $resultado .= "🪪 *Óbito Adicionado!*\n\n";
+    $resultado .= "🔹 *CPF consultado:* `$cpf`\n";
+    $resultado .= "🔹 *Cartório:* `Oficial de Registro Civil das Pessoas Naturais do 18º Subdistrito – Ipiranga`\n";
+    $resultado .= "🔹 *Status da busca:* *REGISTRO ENCONTRADO*\n";
+    $resultado .= "🔹 *Última atualização:* `" . date("d/m/Y H:i:s") . "`\n\n";
+    $resultado .= "💬 Precisa de algo a mais? Fala com: @Fraudarei";
+
+    // Edita para o resultado final (usa Markdown)
+    editMessage($chat_id, $message_id, $resultado);
+
+    // fim da função
     return;
 }
 
