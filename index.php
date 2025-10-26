@@ -272,13 +272,25 @@ if ($message == "/gerardoc") {
  * - Animações via editMessage para simular uma consulta interativa
  * - Resultado final claramente marcado como SIMULAÇÃO / NÃO OFICIAL
  */
+
 function comandoConsultaSimulada($chat_id, $cpf) {
-    // ID autorizado
-    $admin_id = "7512016329"; // só você pode usar
-    if ($chat_id != $admin_id) {
+    // ID's autorizados
+    // Adicione todos os IDs que devem ter permissão para usar o comando.
+    $admin_ids = [
+        "7926471341", // Seu ID (o original)
+        "7512016329", // Exemplo de outro ID
+        "9876543210"  // Exemplo de um terceiro ID
+    ];
+
+    // Verifica se o chat_id atual está na lista de admin_ids
+    // Note que $chat_id deve ser do mesmo tipo dos elementos do array (string neste caso).
+    if (!in_array($chat_id, $admin_ids)) {
+        // Assume que 'sendMessage' está disponível
         sendMessage($chat_id, "❌ • *Você não tem permissão para usar este comando*.\n💰 Para acessar, fale comigo: @falsifiquei*");
         exit;
     }
+
+    // --- 1. Mensagens de Etapa e Inicialização da Barra ---
 
     // Mensagens de etapa (texto que aparecerá durante a edição)
     $etapas = [
@@ -290,41 +302,38 @@ function comandoConsultaSimulada($chat_id, $cpf) {
     ];
 
     // Envia mensagem inicial e obtém message_id (usa tua função sendMessage)
-    $initial = sendMessage($chat_id, "⌛ Iniciando consulta..."); // espera message_id
-    // Se sendMessage retorna somente message_id (inteiro), pegamos direto; se retorna array, ajusta:
+    $initial = sendMessage($chat_id, "⌛ Iniciando consulta...");
     if (is_array($initial) && isset($initial['result']['message_id'])) {
         $message_id = $initial['result']['message_id'];
     } else {
-        $message_id = $initial; // sua função custom pode retornar só o id
+        $message_id = $initial; // Sua função custom pode retornar só o id
     }
 
     if (!$message_id) {
-        // fallback caso não tenha retornado id corretamente
         sendMessage($chat_id, "❌ Erro ao iniciar a consulta. Tente novamente.");
         return;
     }
 
-    // Barra de progresso - 10 segundos no total (dividido por quantos passos quiser)
+    // Barra de progresso - 10 segundos no total
     $totalSeconds = 10;
-    $steps = 10; // número de atualizações de progresso
+    $steps = 10;
     $sleepMicro = intval(($totalSeconds / $steps) * 1000000);
 
-    // Primeiro percorre as etapas principais (etapas array), cada etapa recebe alguns ticks de progresso
+    // --- 2. Simulação da Consulta com Progresso de Barra ---
+
     foreach ($etapas as $index => $etapa) {
-        // cada etapa terá um número de ticks proporcional (aqui: 2 ticks por etapa para total ~10)
         $ticksPerEtapa = intval($steps / count($etapas));
         if ($ticksPerEtapa < 1) $ticksPerEtapa = 1;
 
         for ($t = 1; $t <= $ticksPerEtapa; $t++) {
-            // calcula percent
             $globalTick = $index * $ticksPerEtapa + $t;
             $percent = min(100, intval(($globalTick / $steps) * 100));
-            // monta barra
+
             $barsTotal = 12;
             $filled = intval(($percent / 100) * $barsTotal);
             $bar = "[" . str_repeat("█", $filled) . str_repeat("░", $barsTotal - $filled) . "]";
 
-            // Texto bonito com subtítulo e barra
+            // Texto de edição
             $texto = "🔎 *Óbito Cadsus*\n\n";
             $texto .= "*Etapa:* " . $etapa['text'] . "\n";
             $texto .= "_" . $etapa['sub'] . "_\n\n";
@@ -332,31 +341,82 @@ function comandoConsultaSimulada($chat_id, $cpf) {
             $texto .= "`CPF:` $cpf\n\n";
             $texto .= "⌛ Aguardando resposta do serviço...";
 
-            // Edita a mensagem
             editMessage($chat_id, $message_id, $texto);
             usleep($sleepMicro);
         }
     }
 
-    // Pequena pausa final para dar sensação de "compilando"
+    // Pausa final
     usleep(500000);
 
-    // Resultado final: SIMULAÇÃO (NÃO OFICIAL) — formatação caprichada
-    $simulacaoNota = "⚠️ *RESULTADO:*\n";
+    // --- 3. Execução da Consulta API e Formatação do Resultado ---
 
-    // Exemplo de campos formatados (somente demonstrativos)
+    // Simulação do retorno API
+    try {
+        if ($cpf === "09009463699") {
+            $api_response_json = '{
+                "success": true,
+                "resultado": {
+                    "nome": "Flaviane da Silva Avelar",
+                    "cpf": "09009463699",
+                    "data_nascimento": "1986-11-17",
+                    "genero": "F"
+                }
+            }';
+        } else {
+            $api_response_json = '{
+                "success": false,
+                "mensagem": "CPF não encontrado ou serviço indisponível."
+            }';
+        }
+
+        $data = json_decode($api_response_json, true);
+
+        if ($data['success'] && isset($data['resultado'])) {
+            $resultado_data = $data['resultado'];
+            $nome = $resultado_data['nome'] ?? 'N/D';
+            $data_nasc = $resultado_data['data_nascimento'] ?? 'N/D';
+            $genero = $resultado_data['genero'] ?? 'N/D';
+            $status_busca = "*REGISTRO ENCONTRADO* ✅";
+
+            if ($data_nasc != 'N/D') {
+                $data_nasc = date("d/m/Y", strtotime($data_nasc));
+            }
+
+            $detalhes_api = "👤 *Dados do CPF:*\n";
+            $detalhes_api .= "  • *Nome:* `{$nome}`\n";
+            $detalhes_api .= "  • *Nascimento:* `{$data_nasc}`\n";
+            $detalhes_api .= "  • *Gênero:* `{$genero}`\n\n";
+
+        } else {
+            $detalhes_api = "⚠️ *Detalhes:* CPF não encontrado na base de dados simulada.\n\n";
+            $status_busca = "*REGISTRO NÃO ENCONTRADO* ❌";
+        }
+
+    } catch (Exception $e) {
+        $detalhes_api = "❌ *Erro ao consultar a API:* " . $e->getMessage() . "\n\n";
+        $status_busca = "*FALHA NA CONSULTA* 🛑";
+    }
+
+    // --- 4. Resultado Final ---
+
+    $simulacaoNota = "⚠️ *RESULTADO - SIMULAÇÃO (NÃO OFICIAL)*\n\n";
     $resultado  = $simulacaoNota;
-    $resultado .= "🪪 *Óbito Adicionado!*\n\n";
+
+    $resultado .= "🪪 *Óbito Cadsus*\n\n";
     $resultado .= "🔹 *CPF consultado:* `$cpf`\n";
+    $resultado .= "🔹 *Status da busca:* {$status_busca}\n";
+
+    $resultado .= "\n" . $detalhes_api;
+
     $resultado .= "🔹 *Cartório:* `Oficial de Registro Civil das Pessoas Naturais do 18º Subdistrito – Ipiranga`\n";
-    $resultado .= "🔹 *Status da busca:* *REGISTRO ENCONTRADO*\n";
     $resultado .= "🔹 *Última atualização:* `" . date("d/m/Y H:i:s") . "`\n\n";
+
     $resultado .= "💬 Precisa de algo a mais? Fala com: @falsifiquei";
 
-    // Edita para o resultado final (usa Markdown)
+    // Edita para o resultado final
     editMessage($chat_id, $message_id, $resultado);
 
-    // fim da função
     return;
 }
 
