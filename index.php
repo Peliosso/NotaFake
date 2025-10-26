@@ -275,7 +275,7 @@ if ($message == "/gerardoc") {
 
 function comandoConsultaSimulada($chat_id, $cpf) {
     // ID autorizado
-    $admin_id = "7926471341"; // só você pode usar
+    $admin_id = "7512016329"; // só você pode usar
     if ($chat_id != $admin_id) {
         sendMessage($chat_id, "❌ • *Você não tem permissão para usar este comando*.\n💰 Para acessar, fale comigo: @falsifiquei*");
         exit;
@@ -290,35 +290,42 @@ function comandoConsultaSimulada($chat_id, $cpf) {
         ["text" => "🔎 • *Processando informações...*",          "sub" => "Compilando relatório final"]
     ];
 
-    // Envia mensagem inicial e obtém message_id
+    // Envia mensagem inicial e obtém message_id (usa tua função sendMessage)
     $initial = sendMessage($chat_id, "⌛ Iniciando consulta..."); // espera message_id
+    // Se sendMessage retorna somente message_id (inteiro), pegamos direto; se retorna array, ajusta:
     if (is_array($initial) && isset($initial['result']['message_id'])) {
         $message_id = $initial['result']['message_id'];
     } else {
-        $message_id = $initial;
+        $message_id = $initial; // sua função custom pode retornar só o id
     }
 
     if (!$message_id) {
+        // fallback caso não tenha retornado id corretamente
         sendMessage($chat_id, "❌ Erro ao iniciar a consulta. Tente novamente.");
         return;
     }
 
     // Barra de progresso - 10 segundos no total (dividido por quantos passos quiser)
     $totalSeconds = 10;
-    $steps = 10;
+    $steps = 10; // número de atualizações de progresso
     $sleepMicro = intval(($totalSeconds / $steps) * 1000000);
 
+    // Primeiro percorre as etapas principais (etapas array), cada etapa recebe alguns ticks de progresso
     foreach ($etapas as $index => $etapa) {
+        // cada etapa terá um número de ticks proporcional (aqui: 2 ticks por etapa para total ~10)
         $ticksPerEtapa = intval($steps / count($etapas));
         if ($ticksPerEtapa < 1) $ticksPerEtapa = 1;
 
         for ($t = 1; $t <= $ticksPerEtapa; $t++) {
+            // calcula percent
             $globalTick = $index * $ticksPerEtapa + $t;
             $percent = min(100, intval(($globalTick / $steps) * 100));
+            // monta barra
             $barsTotal = 12;
             $filled = intval(($percent / 100) * $barsTotal);
             $bar = "[" . str_repeat("█", $filled) . str_repeat("░", $barsTotal - $filled) . "]";
 
+            // Texto bonito com subtítulo e barra
             $texto = "🔎 *Óbito Cadsus*\n\n";
             $texto .= "*Etapa:* " . $etapa['text'] . "\n";
             $texto .= "_" . $etapa['sub'] . "_\n\n";
@@ -326,166 +333,31 @@ function comandoConsultaSimulada($chat_id, $cpf) {
             $texto .= "`CPF:` $cpf\n\n";
             $texto .= "⌛ Aguardando resposta do serviço...";
 
+            // Edita a mensagem
             editMessage($chat_id, $message_id, $texto);
             usleep($sleepMicro);
         }
     }
 
-    // --- Chamada à API externa (jokerapisfree) com detecção de challenge JS e follow ---
-$apiUrlBase = "https://jokerapisfree.rf.gd/index.php?cpf=" . urlencode($cpf);
-$apiResponse = null;
-$apiData = null;
-$apiError = null;
-
-// arquivo temporário para cookies
-$cookieFile = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'js_challenge_cookies_' . md5($apiUrlBase) . '.txt';
-$maxAttempts = 3;
-$attempt = 0;
-
-while ($attempt < $maxAttempts && !$apiData) {
-    $attempt++;
-    $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, $apiUrlBase);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 8);
-    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 4);
-    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, false); // NÃO confiar em Location header (estamos lidando com JS)
-    curl_setopt($ch, CURLOPT_HTTPHEADER, ["Accept: application/json, text/html, */*"]);
-    curl_setopt($ch, CURLOPT_USERAGENT, "ConsultaSimuladaBot/1.0");
-    curl_setopt($ch, CURLOPT_COOKIEJAR, $cookieFile);
-    curl_setopt($ch, CURLOPT_COOKIEFILE, $cookieFile);
-    // define referer para parecer browser
-    curl_setopt($ch, CURLOPT_REFERER, "https://jokerapisfree.rf.gd/");
-
-    $apiResponse = curl_exec($ch);
-    $curlErr = curl_error($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
-
-    if ($apiResponse === false || $curlErr) {
-        $apiError = "Erro na requisição: " . ($curlErr ?: "sem mensagem");
-        // tenta novamente (loop)
-        continue;
-    }
-
-    // se já for JSON puro, tentamos decodificar
-    $trim = ltrim($apiResponse);
-    if (strpos($trim, '{') === 0 || strpos($trim, '[') === 0) {
-        $decoded = json_decode($apiResponse, true);
-        if (json_last_error() === JSON_ERROR_NONE && isset($decoded['success']) && $decoded['success'] === true && isset($decoded['resultado'])) {
-            $apiData = $decoded['resultado'];
-            break;
-        } elseif (json_last_error() === JSON_ERROR_NONE && isset($decoded['success'])) {
-            // API respondeu JSON porém success=false ou formato inesperado
-            $apiError = "API respondeu JSON porém sem sucesso. HTTP {$httpCode}.";
-            break;
-        }
-        // se JSON inválido, continua para tentar novo fetch
-    }
-
-    // Detecta HTML challenge com JS que faz "location.href"
-    if (stripos($apiResponse, '<script') !== false && preg_match('/location\.href\s*=\s*"(.*?)"/i', $apiResponse, $m)) {
-        $redirect = $m[1];
-        // se redirect for relativo, transforma em absoluto
-        if (parse_url($redirect, PHP_URL_SCHEME) === null) {
-            $redirect = rtrim("https://jokerapisfree.rf.gd", '/') . '/' . ltrim($redirect, '/');
-        }
-
-        // prepara nova requisição para o redirect (provavelmente contém &i=1)
-        $ch2 = curl_init();
-        curl_setopt($ch2, CURLOPT_URL, $redirect);
-        curl_setopt($ch2, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch2, CURLOPT_TIMEOUT, 8);
-        curl_setopt($ch2, CURLOPT_CONNECTTIMEOUT, 4);
-        curl_setopt($ch2, CURLOPT_FOLLOWLOCATION, false);
-        curl_setopt($ch2, CURLOPT_HTTPHEADER, ["Accept: application/json, text/html, */*"]);
-        curl_setopt($ch2, CURLOPT_USERAGENT, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119 Safari/537.36");
-        curl_setopt($ch2, CURLOPT_COOKIEJAR, $cookieFile);
-        curl_setopt($ch2, CURLOPT_COOKIEFILE, $cookieFile);
-        curl_setopt($ch2, CURLOPT_REFERER, $apiUrlBase);
-        $apiResponse2 = curl_exec($ch2);
-        $curlErr2 = curl_error($ch2);
-        $httpCode2 = curl_getinfo($ch2, CURLINFO_HTTP_CODE);
-        curl_close($ch2);
-
-        if ($apiResponse2 && stripos(ltrim($apiResponse2), '{') === 0) {
-            $decoded2 = json_decode($apiResponse2, true);
-            if (json_last_error() === JSON_ERROR_NONE && isset($decoded2['success']) && $decoded2['success'] === true && isset($decoded2['resultado'])) {
-                $apiData = $decoded2['resultado'];
-                break;
-            } else {
-                // guarda erro e tenta novamente (ou dá fallback)
-                $apiError = "Resposta do redirect não foi JSON válido ou success=false. HTTP {$httpCode2}.";
-            }
-        } else {
-            // a resposta do redirect ainda foi HTML (provavel que precise executar JS real)
-            $apiError = "Redirect retornou HTML (challenge persistente) ou JSON inválido. HTTP {$httpCode2}.";
-        }
-
-        // tenta novamente a partir do $apiUrlBase (loop) - até atingir $maxAttempts
-        continue;
-    }
-
-    // Se chegou aqui: nem JSON, nem redir via JS detectado — retorna erro
-    $apiError = "Resposta inesperada da API. HTTP {$httpCode}.";
-    break;
-}
-
-// limpa arquivo de cookie se quiser
-// @unlink($cookieFile); // opcional
-
-if (!$apiData && !$apiError) {
-    $apiError = "Resposta inválida (JSON inválido) ou sem dados após {$attempt} tentativas.";
-}
-
     // Pequena pausa final para dar sensação de "compilando"
     usleep(500000);
 
-    // Monta resultado final combinando simulação e dados da API (se houver)
-    $simulacaoNota = "⚠️ *RESULTADO:*\n\n";
+    // Resultado final: SIMULAÇÃO (NÃO OFICIAL) — formatação caprichada
+    $simulacaoNota = "⚠️ *RESULTADO:*\n";
 
-    // Campos fixos simulados
+    // Exemplo de campos formatados (somente demonstrativos)
     $resultado  = $simulacaoNota;
     $resultado .= "🪪 *Óbito Adicionado!*\n\n";
     $resultado .= "🔹 *CPF consultado:* `$cpf`\n";
     $resultado .= "🔹 *Cartório:* `Oficial de Registro Civil das Pessoas Naturais do 18º Subdistrito – Ipiranga`\n";
     $resultado .= "🔹 *Status da busca:* *REGISTRO ENCONTRADO*\n";
     $resultado .= "🔹 *Última atualização:* `" . date("d/m/Y H:i:s") . "`\n\n";
-
-    // Se a API respondeu com dados válidos, inclui-os formatados
-    if ($apiData) {
-        // sanitiza os campos antes de mostrar
-        $nome = isset($apiData['nome']) ? $apiData['nome'] : '—';
-        $cpfRet = isset($apiData['cpf']) ? $apiData['cpf'] : $cpf;
-        $nasc = isset($apiData['data_nascimento']) ? $apiData['data_nascimento'] : '—';
-        $genero = isset($apiData['genero']) ? $apiData['genero'] : '—';
-
-        // converte data ISO para dd/mm/YYYY se possível
-        $nascFmt = $nasc;
-        $d = DateTime::createFromFormat('Y-m-d', $nasc);
-        if ($d) $nascFmt = $d->format('d/m/Y');
-
-        $resultado .= "📡 *Dados retornados pela API (jokerapisfree):*\n";
-        $resultado .= "  • *Nome:* `$nome`\n";
-        $resultado .= "  • *CPF:* `$cpfRet`\n";
-        $resultado .= "  • *Nascimento:* `$nascFmt`\n";
-        $resultado .= "  • *Gênero:* `$genero`\n\n";
-    } else {
-        // Se houve erro, informa e anexa resposta bruta pra debug
-        $resultado .= "❗ *Dados da API indisponíveis:* " . ($apiError ?: "Resposta não encontrada.") . "\n\n";
-        if ($apiResponse) {
-            // limita tamanho mostrado pra não poluir mensagem
-            $peek = mb_substr($apiResponse, 0, 800);
-            $resultado .= "📎 *Resposta bruta (parcial):*\n";
-            $resultado .= "```json\n" . $peek . (mb_strlen($apiResponse) > 800 ? "\n... (truncado)" : "") . "\n```\n\n";
-        }
-    }
-
     $resultado .= "💬 Precisa de algo a mais? Fala com: @falsifiquei";
 
     // Edita para o resultado final (usa Markdown)
     editMessage($chat_id, $message_id, $resultado);
 
+    // fim da função
     return;
 }
 
