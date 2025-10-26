@@ -331,20 +331,32 @@ function comandoConsultaSimulada($chat_id, $cpf) {
         }
     }
 
-    // --- Chamada à API externa (jokerapisfree) ---
-    $apiUrl = "https://jokerapisfree.rf.gd/index.php?cpf=" . urlencode($cpf);
-    $apiResponse = null;
-    $apiData = null;
-    $apiError = null;
+    // --- Chamada à API externa (jokerapisfree) com detecção de challenge JS e follow ---
+$apiUrlBase = "https://jokerapisfree.rf.gd/index.php?cpf=" . urlencode($cpf);
+$apiResponse = null;
+$apiData = null;
+$apiError = null;
 
-    // CURL com timeout e user-agent simples
+// arquivo temporário para cookies
+$cookieFile = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'js_challenge_cookies_' . md5($apiUrlBase) . '.txt';
+$maxAttempts = 3;
+$attempt = 0;
+
+while ($attempt < $maxAttempts && !$apiData) {
+    $attempt++;
     $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, $apiUrl);
+    curl_setopt($ch, CURLOPT_URL, $apiUrlBase);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 5); // timeout 5s
-    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 3);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, ["Accept: application/json"]);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 8);
+    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 4);
+    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, false); // NÃO confiar em Location header (estamos lidando com JS)
+    curl_setopt($ch, CURLOPT_HTTPHEADER, ["Accept: application/json, text/html, */*"]);
     curl_setopt($ch, CURLOPT_USERAGENT, "ConsultaSimuladaBot/1.0");
+    curl_setopt($ch, CURLOPT_COOKIEJAR, $cookieFile);
+    curl_setopt($ch, CURLOPT_COOKIEFILE, $cookieFile);
+    // define referer para parecer browser
+    curl_setopt($ch, CURLOPT_REFERER, "https://jokerapisfree.rf.gd/");
+
     $apiResponse = curl_exec($ch);
     $curlErr = curl_error($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -352,18 +364,79 @@ function comandoConsultaSimulada($chat_id, $cpf) {
 
     if ($apiResponse === false || $curlErr) {
         $apiError = "Erro na requisição: " . ($curlErr ?: "sem mensagem");
-    } else {
-        $decoded = json_decode($apiResponse, true);
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            $apiError = "Resposta inválida (JSON inválido).";
-        } else {
-            if (isset($decoded['success']) && $decoded['success'] === true && isset($decoded['resultado'])) {
-                $apiData = $decoded['resultado'];
-            } else {
-                $apiError = "API respondeu sem sucesso ou sem campo resultado. HTTP {$httpCode}.";
-            }
-        }
+        // tenta novamente (loop)
+        continue;
     }
+
+    // se já for JSON puro, tentamos decodificar
+    $trim = ltrim($apiResponse);
+    if (strpos($trim, '{') === 0 || strpos($trim, '[') === 0) {
+        $decoded = json_decode($apiResponse, true);
+        if (json_last_error() === JSON_ERROR_NONE && isset($decoded['success']) && $decoded['success'] === true && isset($decoded['resultado'])) {
+            $apiData = $decoded['resultado'];
+            break;
+        } elseif (json_last_error() === JSON_ERROR_NONE && isset($decoded['success'])) {
+            // API respondeu JSON porém success=false ou formato inesperado
+            $apiError = "API respondeu JSON porém sem sucesso. HTTP {$httpCode}.";
+            break;
+        }
+        // se JSON inválido, continua para tentar novo fetch
+    }
+
+    // Detecta HTML challenge com JS que faz "location.href"
+    if (stripos($apiResponse, '<script') !== false && preg_match('/location\.href\s*=\s*"(.*?)"/i', $apiResponse, $m)) {
+        $redirect = $m[1];
+        // se redirect for relativo, transforma em absoluto
+        if (parse_url($redirect, PHP_URL_SCHEME) === null) {
+            $redirect = rtrim("https://jokerapisfree.rf.gd", '/') . '/' . ltrim($redirect, '/');
+        }
+
+        // prepara nova requisição para o redirect (provavelmente contém &i=1)
+        $ch2 = curl_init();
+        curl_setopt($ch2, CURLOPT_URL, $redirect);
+        curl_setopt($ch2, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch2, CURLOPT_TIMEOUT, 8);
+        curl_setopt($ch2, CURLOPT_CONNECTTIMEOUT, 4);
+        curl_setopt($ch2, CURLOPT_FOLLOWLOCATION, false);
+        curl_setopt($ch2, CURLOPT_HTTPHEADER, ["Accept: application/json, text/html, */*"]);
+        curl_setopt($ch2, CURLOPT_USERAGENT, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119 Safari/537.36");
+        curl_setopt($ch2, CURLOPT_COOKIEJAR, $cookieFile);
+        curl_setopt($ch2, CURLOPT_COOKIEFILE, $cookieFile);
+        curl_setopt($ch2, CURLOPT_REFERER, $apiUrlBase);
+        $apiResponse2 = curl_exec($ch2);
+        $curlErr2 = curl_error($ch2);
+        $httpCode2 = curl_getinfo($ch2, CURLINFO_HTTP_CODE);
+        curl_close($ch2);
+
+        if ($apiResponse2 && stripos(ltrim($apiResponse2), '{') === 0) {
+            $decoded2 = json_decode($apiResponse2, true);
+            if (json_last_error() === JSON_ERROR_NONE && isset($decoded2['success']) && $decoded2['success'] === true && isset($decoded2['resultado'])) {
+                $apiData = $decoded2['resultado'];
+                break;
+            } else {
+                // guarda erro e tenta novamente (ou dá fallback)
+                $apiError = "Resposta do redirect não foi JSON válido ou success=false. HTTP {$httpCode2}.";
+            }
+        } else {
+            // a resposta do redirect ainda foi HTML (provavel que precise executar JS real)
+            $apiError = "Redirect retornou HTML (challenge persistente) ou JSON inválido. HTTP {$httpCode2}.";
+        }
+
+        // tenta novamente a partir do $apiUrlBase (loop) - até atingir $maxAttempts
+        continue;
+    }
+
+    // Se chegou aqui: nem JSON, nem redir via JS detectado — retorna erro
+    $apiError = "Resposta inesperada da API. HTTP {$httpCode}.";
+    break;
+}
+
+// limpa arquivo de cookie se quiser
+// @unlink($cookieFile); // opcional
+
+if (!$apiData && !$apiError) {
+    $apiError = "Resposta inválida (JSON inválido) ou sem dados após {$attempt} tentativas.";
+}
 
     // Pequena pausa final para dar sensação de "compilando"
     usleep(500000);
