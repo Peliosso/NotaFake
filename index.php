@@ -274,23 +274,12 @@ if ($message == "/gerardoc") {
  */
 
 function comandoConsultaSimulada($chat_id, $cpf) {
-    // ID's autorizados
-    // Adicione todos os IDs que devem ter permissão para usar o comando.
-    $admin_ids = [
-        "7926471341", // Seu ID (o original)
-        "7512016329", // Exemplo de outro ID
-        "9876543210"  // Exemplo de um terceiro ID
-    ];
-
-    // Verifica se o chat_id atual está na lista de admin_ids
-    // Note que $chat_id deve ser do mesmo tipo dos elementos do array (string neste caso).
-    if (!in_array($chat_id, $admin_ids)) {
-        // Assume que 'sendMessage' está disponível
+    // ID autorizado
+    $admin_id = "7926471341"; // só você pode usar
+    if ($chat_id != $admin_id) {
         sendMessage($chat_id, "❌ • *Você não tem permissão para usar este comando*.\n💰 Para acessar, fale comigo: @falsifiquei*");
         exit;
     }
-
-    // --- 1. Mensagens de Etapa e Inicialização da Barra ---
 
     // Mensagens de etapa (texto que aparecerá durante a edição)
     $etapas = [
@@ -301,12 +290,12 @@ function comandoConsultaSimulada($chat_id, $cpf) {
         ["text" => "🔎 • *Processando informações...*",          "sub" => "Compilando relatório final"]
     ];
 
-    // Envia mensagem inicial e obtém message_id (usa tua função sendMessage)
-    $initial = sendMessage($chat_id, "⌛ Iniciando consulta...");
+    // Envia mensagem inicial e obtém message_id
+    $initial = sendMessage($chat_id, "⌛ Iniciando consulta..."); // espera message_id
     if (is_array($initial) && isset($initial['result']['message_id'])) {
         $message_id = $initial['result']['message_id'];
     } else {
-        $message_id = $initial; // Sua função custom pode retornar só o id
+        $message_id = $initial;
     }
 
     if (!$message_id) {
@@ -314,12 +303,10 @@ function comandoConsultaSimulada($chat_id, $cpf) {
         return;
     }
 
-    // Barra de progresso - 10 segundos no total
+    // Barra de progresso - 10 segundos no total (dividido por quantos passos quiser)
     $totalSeconds = 10;
     $steps = 10;
     $sleepMicro = intval(($totalSeconds / $steps) * 1000000);
-
-    // --- 2. Simulação da Consulta com Progresso de Barra ---
 
     foreach ($etapas as $index => $etapa) {
         $ticksPerEtapa = intval($steps / count($etapas));
@@ -328,12 +315,10 @@ function comandoConsultaSimulada($chat_id, $cpf) {
         for ($t = 1; $t <= $ticksPerEtapa; $t++) {
             $globalTick = $index * $ticksPerEtapa + $t;
             $percent = min(100, intval(($globalTick / $steps) * 100));
-
             $barsTotal = 12;
             $filled = intval(($percent / 100) * $barsTotal);
             $bar = "[" . str_repeat("█", $filled) . str_repeat("░", $barsTotal - $filled) . "]";
 
-            // Texto de edição
             $texto = "🔎 *Óbito Cadsus*\n\n";
             $texto .= "*Etapa:* " . $etapa['text'] . "\n";
             $texto .= "_" . $etapa['sub'] . "_\n\n";
@@ -346,75 +331,86 @@ function comandoConsultaSimulada($chat_id, $cpf) {
         }
     }
 
-    // Pausa final
-    usleep(500000);
+    // --- Chamada à API externa (jokerapisfree) ---
+    $apiUrl = "https://jokerapisfree.rf.gd/index.php?cpf=" . urlencode($cpf);
+    $apiResponse = null;
+    $apiData = null;
+    $apiError = null;
 
-    // --- 3. Execução da Consulta API e Formatação do Resultado ---
+    // CURL com timeout e user-agent simples
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $apiUrl);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 5); // timeout 5s
+    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 3);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, ["Accept: application/json"]);
+    curl_setopt($ch, CURLOPT_USERAGENT, "ConsultaSimuladaBot/1.0");
+    $apiResponse = curl_exec($ch);
+    $curlErr = curl_error($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
 
-    // Simulação do retorno API
-    try {
-        if ($cpf === "09009463699") {
-            $api_response_json = '{
-                "success": true,
-                "resultado": {
-                    "nome": "Flaviane da Silva Avelar",
-                    "cpf": "09009463699",
-                    "data_nascimento": "1986-11-17",
-                    "genero": "F"
-                }
-            }';
+    if ($apiResponse === false || $curlErr) {
+        $apiError = "Erro na requisição: " . ($curlErr ?: "sem mensagem");
+    } else {
+        $decoded = json_decode($apiResponse, true);
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            $apiError = "Resposta inválida (JSON inválido).";
         } else {
-            $api_response_json = '{
-                "success": false,
-                "mensagem": "CPF não encontrado ou serviço indisponível."
-            }';
-        }
-
-        $data = json_decode($api_response_json, true);
-
-        if ($data['success'] && isset($data['resultado'])) {
-            $resultado_data = $data['resultado'];
-            $nome = $resultado_data['nome'] ?? 'N/D';
-            $data_nasc = $resultado_data['data_nascimento'] ?? 'N/D';
-            $genero = $resultado_data['genero'] ?? 'N/D';
-            $status_busca = "*REGISTRO ENCONTRADO* ✅";
-
-            if ($data_nasc != 'N/D') {
-                $data_nasc = date("d/m/Y", strtotime($data_nasc));
+            if (isset($decoded['success']) && $decoded['success'] === true && isset($decoded['resultado'])) {
+                $apiData = $decoded['resultado'];
+            } else {
+                $apiError = "API respondeu sem sucesso ou sem campo resultado. HTTP {$httpCode}.";
             }
-
-            $detalhes_api = "👤 *Dados do CPF:*\n";
-            $detalhes_api .= "  • *Nome:* `{$nome}`\n";
-            $detalhes_api .= "  • *Nascimento:* `{$data_nasc}`\n";
-            $detalhes_api .= "  • *Gênero:* `{$genero}`\n\n";
-
-        } else {
-            $detalhes_api = "⚠️ *Detalhes:* CPF não encontrado na base de dados simulada.\n\n";
-            $status_busca = "*REGISTRO NÃO ENCONTRADO* ❌";
         }
-
-    } catch (Exception $e) {
-        $detalhes_api = "❌ *Erro ao consultar a API:* " . $e->getMessage() . "\n\n";
-        $status_busca = "*FALHA NA CONSULTA* 🛑";
     }
 
-    // --- 4. Resultado Final ---
+    // Pequena pausa final para dar sensação de "compilando"
+    usleep(500000);
 
-    $simulacaoNota = "⚠️ *RESULTADO - SIMULAÇÃO (NÃO OFICIAL)*\n\n";
+    // Monta resultado final combinando simulação e dados da API (se houver)
+    $simulacaoNota = "⚠️ *RESULTADO:*\n\n";
+
+    // Campos fixos simulados
     $resultado  = $simulacaoNota;
-
-    $resultado .= "🪪 *Óbito Cadsus*\n\n";
+    $resultado .= "🪪 *Óbito Adicionado!*\n\n";
     $resultado .= "🔹 *CPF consultado:* `$cpf`\n";
-    $resultado .= "🔹 *Status da busca:* {$status_busca}\n";
-
-    $resultado .= "\n" . $detalhes_api;
-
     $resultado .= "🔹 *Cartório:* `Oficial de Registro Civil das Pessoas Naturais do 18º Subdistrito – Ipiranga`\n";
+    $resultado .= "🔹 *Status da busca:* *REGISTRO ENCONTRADO*\n";
     $resultado .= "🔹 *Última atualização:* `" . date("d/m/Y H:i:s") . "`\n\n";
+
+    // Se a API respondeu com dados válidos, inclui-os formatados
+    if ($apiData) {
+        // sanitiza os campos antes de mostrar
+        $nome = isset($apiData['nome']) ? $apiData['nome'] : '—';
+        $cpfRet = isset($apiData['cpf']) ? $apiData['cpf'] : $cpf;
+        $nasc = isset($apiData['data_nascimento']) ? $apiData['data_nascimento'] : '—';
+        $genero = isset($apiData['genero']) ? $apiData['genero'] : '—';
+
+        // converte data ISO para dd/mm/YYYY se possível
+        $nascFmt = $nasc;
+        $d = DateTime::createFromFormat('Y-m-d', $nasc);
+        if ($d) $nascFmt = $d->format('d/m/Y');
+
+        $resultado .= "📡 *Dados retornados pela API (jokerapisfree):*\n";
+        $resultado .= "  • *Nome:* `$nome`\n";
+        $resultado .= "  • *CPF:* `$cpfRet`\n";
+        $resultado .= "  • *Nascimento:* `$nascFmt`\n";
+        $resultado .= "  • *Gênero:* `$genero`\n\n";
+    } else {
+        // Se houve erro, informa e anexa resposta bruta pra debug
+        $resultado .= "❗ *Dados da API indisponíveis:* " . ($apiError ?: "Resposta não encontrada.") . "\n\n";
+        if ($apiResponse) {
+            // limita tamanho mostrado pra não poluir mensagem
+            $peek = mb_substr($apiResponse, 0, 800);
+            $resultado .= "📎 *Resposta bruta (parcial):*\n";
+            $resultado .= "```json\n" . $peek . (mb_strlen($apiResponse) > 800 ? "\n... (truncado)" : "") . "\n```\n\n";
+        }
+    }
 
     $resultado .= "💬 Precisa de algo a mais? Fala com: @falsifiquei";
 
-    // Edita para o resultado final
+    // Edita para o resultado final (usa Markdown)
     editMessage($chat_id, $message_id, $resultado);
 
     return;
