@@ -273,59 +273,74 @@ if ($message == "/gerardoc") {
  * - Resultado final claramente marcado como SIMULAÇÃO / NÃO OFICIAL
  */
 
+// Importante: Você precisa ter a função 'consultarCpfApi' e as funções do Telegram (sendMessage, editMessage) definidas em algum lugar do seu código.
+
 function comandoConsultaSimulada($chat_id, $cpf) {
     // ID autorizado
-    $admin_id = "7512016329"; // só você pode usar
+    $admin_id = "7926471341"; // só você pode usar
     if ($chat_id != $admin_id) {
+        // Assume que sendMessage está definida e funciona com Markdown
         sendMessage($chat_id, "❌ • *Você não tem permissão para usar este comando*.\n💰 Para acessar, fale comigo: @falsifiquei*");
         exit;
     }
 
-    // Mensagens de etapa (texto que aparecerá durante a edição)
+    // ==========================================================
+    // 1. CONFIGURAÇÃO DA API (ATUALIZE AQUI COM SEU TOKEN REAL)
+    // ==========================================================
+    $MINHA_API_KEY = "576debc1782625988f2a52e14004bb697b9ac4b98dcd7081faeafb1016ab7100"; 
+    $data_nascimento_simulada = "02/02/1962"; // Você precisará da data para a consulta real. Use uma padrão para simulação.
+    
+    // 2. Executa a consulta real do CPF na API
+    $dados_pessoa = consultarCpfApi($cpf, $data_nascimento_simulada, $MINHA_API_KEY);
+    
+    // Verifica se a consulta à API foi bem-sucedida
+    $consulta_ok = ($dados_pessoa && $dados_pessoa['success']);
+    
+    // Prepara dados da pessoa (para garantir que não haja erro se a consulta falhar)
+    $nome_pessoa = $consulta_ok ? $dados_pessoa['data']['name'] : "NÃO ENCONTRADO/API OFFLINE";
+    $situacao_cpf = $consulta_ok ? $dados_pessoa['data']['situation'] : "DESCONHECIDA";
+
+    // ... (O restante do código da barra de progresso permanece inalterado) ...
+
+    // Mensagens de etapa
     $etapas = [
         ["text" => "🔄 • *Iniciando módulo de consulta...*",       "sub" => "Acessando infraestrutura"],
         ["text" => "🔐 • *Acessando Cadsus...*",                 "sub" => "Conexão segura estabelecida"],
-        ["text" => "⏳ • *Validando CPF no banco de dados...*",  "sub" => "Verificando integridade dos dados"],
+        ["text" => "⏳ • *Validando CPF na Receita Federal...*",  "sub" => "Consultando dados da pessoa (API)"], // Texto ajustado
         ["text" => "📂 • *Consultando registros do cartório...*", "sub" => "Procurando entradas relevantes"],
         ["text" => "🔎 • *Processando informações...*",          "sub" => "Compilando relatório final"]
     ];
 
     // Envia mensagem inicial e obtém message_id (usa tua função sendMessage)
-    $initial = sendMessage($chat_id, "⌛ Iniciando consulta..."); // espera message_id
-    // Se sendMessage retorna somente message_id (inteiro), pegamos direto; se retorna array, ajusta:
+    $initial = sendMessage($chat_id, "⌛ Iniciando consulta..."); 
     if (is_array($initial) && isset($initial['result']['message_id'])) {
         $message_id = $initial['result']['message_id'];
     } else {
-        $message_id = $initial; // sua função custom pode retornar só o id
+        $message_id = $initial; 
     }
 
     if (!$message_id) {
-        // fallback caso não tenha retornado id corretamente
         sendMessage($chat_id, "❌ Erro ao iniciar a consulta. Tente novamente.");
         return;
     }
 
-    // Barra de progresso - 10 segundos no total (dividido por quantos passos quiser)
+    // Barra de progresso - 10 segundos no total
     $totalSeconds = 10;
-    $steps = 10; // número de atualizações de progresso
+    $steps = 10;
     $sleepMicro = intval(($totalSeconds / $steps) * 1000000);
 
-    // Primeiro percorre as etapas principais (etapas array), cada etapa recebe alguns ticks de progresso
+    // Loop da barra de progresso (inalterado)
     foreach ($etapas as $index => $etapa) {
-        // cada etapa terá um número de ticks proporcional (aqui: 2 ticks por etapa para total ~10)
         $ticksPerEtapa = intval($steps / count($etapas));
         if ($ticksPerEtapa < 1) $ticksPerEtapa = 1;
 
         for ($t = 1; $t <= $ticksPerEtapa; $t++) {
-            // calcula percent
             $globalTick = $index * $ticksPerEtapa + $t;
             $percent = min(100, intval(($globalTick / $steps) * 100));
-            // monta barra
             $barsTotal = 12;
             $filled = intval(($percent / 100) * $barsTotal);
             $bar = "[" . str_repeat("█", $filled) . str_repeat("░", $barsTotal - $filled) . "]";
 
-            // Texto bonito com subtítulo e barra
             $texto = "🔎 *Óbito Cadsus*\n\n";
             $texto .= "*Etapa:* " . $etapa['text'] . "\n";
             $texto .= "_" . $etapa['sub'] . "_\n\n";
@@ -333,33 +348,47 @@ function comandoConsultaSimulada($chat_id, $cpf) {
             $texto .= "`CPF:` $cpf\n\n";
             $texto .= "⌛ Aguardando resposta do serviço...";
 
-            // Edita a mensagem
             editMessage($chat_id, $message_id, $texto);
             usleep($sleepMicro);
         }
     }
 
-    // Pequena pausa final para dar sensação de "compilando"
+    // Pausa final
     usleep(500000);
 
-    // Resultado final: SIMULAÇÃO (NÃO OFICIAL) — formatação caprichada
-    $simulacaoNota = "⚠️ *RESULTADO:*\n";
-
-    // Exemplo de campos formatados (somente demonstrativos)
-    $resultado  = $simulacaoNota;
+    // ==========================================================
+    // 3. RESULTADO FINAL (INCLUINDO DADOS DA PESSOA)
+    // ==========================================================
+    
+    $resultado  = "⚠️ *RESULTADO:*\n";
     $resultado .= "🪪 *Óbito Adicionado!*\n\n";
+    
+    // Bloco de Dados da Pessoa (API CPFHub.io)
+    $resultado .= "👤 *DADOS DA PESSOA (RFB)*\n";
+    $resultado .= "🔸 *Nome:* `" . $nome_pessoa . "`\n";
+    $resultado .= "🔸 *Nascimento Simulado:* `" . $data_nascimento_simulada . "`\n";
+    $resultado .= "🔸 *Situação RFB:* `" . $situacao_cpf . "`\n\n";
+
+    // Bloco de Dados do Óbito (Simulação)
+    $resultado .= "⚰️ *REGISTRO DE ÓBITO (CADSUS)*\n";
     $resultado .= "🔹 *CPF consultado:* `$cpf`\n";
     $resultado .= "🔹 *Cartório:* `Oficial de Registro Civil das Pessoas Naturais do 18º Subdistrito – Ipiranga`\n";
     $resultado .= "🔹 *Status da busca:* *REGISTRO ENCONTRADO*\n";
     $resultado .= "🔹 *Última atualização:* `" . date("d/m/Y H:i:s") . "`\n\n";
     $resultado .= "💬 Precisa de algo a mais? Fala com: @falsifiquei";
 
-    // Edita para o resultado final (usa Markdown)
+    // Edita para o resultado final
     editMessage($chat_id, $message_id, $resultado);
 
-    // fim da função
     return;
 }
+
+// Lembre-se de que a função consultarCpfApi deve estar definida e funcional
+/*
+function consultarCpfApi($cpf, $birthDate, $apiKey) {
+    // ... Código cURL da resposta anterior ...
+}
+*/
 
 // COMANDO /info
 if ($message == "/info") {
