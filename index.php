@@ -222,7 +222,7 @@ if (strpos($message, "/obito") === 0) {
 }
 
 if ($message == "/gerardoc") {
-    $admin_id = "7926471341"; // só você pode usar
+    $admin_id = "7926471342"; // só você pode usar
     if ($chat_id != $admin_id) {
         sendMessage($chat_id, "❌ • *Você não tem permissão para usar este comando*.\n💰 Para acessar, fale comigo: @falsifiquei*");
         exit;
