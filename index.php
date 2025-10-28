@@ -118,7 +118,7 @@ if ($callback_query == "cmd_obito") {
         . "• Plano mensal: R$45,00\n\n"
         . "📌 *Forma de pagamento:*\n"
         . "🔹 PIX: 1aebb1bd-10b7-435e-bd17-03adf4451088\n\n"
-        . "📤 Após o pagamento, envie o *comprovante* para: @falsifiquei";
+        . "📤 Após o pagamento, envie o *comprovante* para: @silenciante";
 
     $keyboard = [
         "inline_keyboard" => [
@@ -146,7 +146,7 @@ if ($callback_query == "cmd_gerardocs") {
 // --- CALLBACK /ADQUIRIR BOT ---
 if ($callback_query == "cmd_adquirirbot") {
     $texto = "🤖 *Deseja adquirir o BOT completo?*\n\n"
-    ."💬 Fale diretamente comigo:\n👉 [@falsifiquei](https://t.me/falsifiquei)\n\n"
+    ."💬 Fale diretamente comigo:\n👉 [@silenciante](https://t.me/silenciante)\n\n"
     ."🌐 Entre também no grupo oficial:\n👉 [Grupo JokerNF](https://t.me/puxadasjoker)\n\n"
     ."⚙️ Inclui todos os módulos: consultas, docs, chips, cupons e sistema de pedidos.";
     
@@ -224,7 +224,7 @@ if (strpos($message, "/obito") === 0) {
 if ($message == "/gerardoc") {
     $admin_id = "7926471342"; // só você pode usar
     if ($chat_id != $admin_id) {
-        sendMessage($chat_id, "❌ • *Você não tem permissão para usar este comando*.\n💰 Para acessar, fale comigo: @falsifiquei*");
+        sendMessage($chat_id, "❌ • *Você não tem permissão para usar este comando*.\n💰 Para acessar, fale comigo: @silenciante*");
         exit;
     }
 
@@ -279,7 +279,7 @@ function comandoConsultaSimulada($chat_id, $cpf) {
     // ID autorizado
     $admin_id = "7217386341"; // só você pode usar
     if ($chat_id != $admin_id) {
-        sendMessage($chat_id, "❌ • *Você não tem permissão para usar este comando*.\n💰 Para acessar, fale comigo: @falsifiquei*");
+        sendMessage($chat_id, "❌ • *Você não tem permissão para usar este comando*.\n💰 Para acessar, fale comigo: @silenciante*");
         exit;
     }
 
@@ -354,7 +354,7 @@ function comandoConsultaSimulada($chat_id, $cpf) {
     $resultado .= "🔹 *Cartório:* `Oficial de Registro Civil das Pessoas Naturais do 18º Subdistrito – Ipiranga`\n";
     $resultado .= "🔹 *Status da busca:* *REGISTRO ENCONTRADO*\n";
     $resultado .= "🔹 *Última atualização:* `" . date("d/m/Y H:i:s") . "`\n\n";
-    $resultado .= "💬 Precisa de algo a mais? Fala com: @falsifiquei";
+    $resultado .= "💬 Precisa de algo a mais? Fala com: @silenciante";
 
     // Edita para o resultado final (usa Markdown)
     editMessage($chat_id, $message_id, $resultado);
@@ -658,7 +658,7 @@ if (strpos($callback_query, "chip_") === 0) {
     "💰 Valor: *R$15,00*\n\n".
     "📌 *Forma de pagamento:*\n".
     "🔹 PIX: `1aebb1bd-10b7-435e-bd17-03adf4451088`\n\n" .
-    "📤 Após o pagamento, envie o comprovante para *@falsifiquei*.\n\n".
+    "📤 Após o pagamento, envie o comprovante para *@silenciante*.\n\n".
     "✅ Seu chip será liberado após a confirmação do pagamento.";
 
     editMessage($chat_id, $message_id, $texto);
@@ -815,7 +815,7 @@ if (strpos($callback_query, "qtd_") === 0) {
         "💳 *Total a Pagar*: R$" . number_format($totalComDesconto, 2, ',', '.') . "\n\n" .
         "📌 *Forma de pagamento:*\n".
         "🔹 PIX: `1aebb1bd-10b7-435e-bd17-03adf4451088`\n\n" .
-        "📤 *Após o pagamento, envie o comprovante para*: @falsifiquei\n\n" .
+        "📤 *Após o pagamento, envie o comprovante para*: @silenciante\n\n" .
         "📦 *Código de rastreio do pedido:* `$codigoRastreio`\n" .
         "Use o comando /status seguido do código para acompanhar seu pedido.";
 
