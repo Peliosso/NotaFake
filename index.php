@@ -363,6 +363,141 @@ function comandoConsultaSimulada($chat_id, $cpf) {
     return;
 }
 
+// --- COMANDO /cpf ---
+// Uso: /cpf 00000000000
+if (strpos($message, "/cpf") === 0) {
+
+    $parts = preg_split('/\s+/', trim($message));
+    if (!isset($parts[1]) || empty($parts[1])) {
+        sendMessage($chat_id, "❌ Uso correto:\n`/cpf 12345678910`");
+        exit;
+    }
+
+    $cpf = preg_replace('/\D/', '', $parts[1]);
+
+    $api = "https://apis-brasil.shop/apis/apiserasacpf2025.php?cpf=$cpf";
+    $json = @file_get_contents($api);
+
+    if ($json === false) {
+        sendMessage($chat_id, "❌ Erro ao consultar API");
+        exit;
+    }
+
+    $r = json_decode($json, true);
+
+    if (!isset($r["DADOS"])) {
+        sendMessage($chat_id, "❌ CPF não encontrado");
+        exit;
+    }
+
+    $d = $r["DADOS"];
+
+    $nome = $d["NOME"] ?? "-";
+    $sexo = $d["SEXO"] ?? "-";
+    $nasc = $d["NASC"] ?? "-";
+    $mae  = $d["NOME_MAE"] ?? "-";
+    $pai  = $d["NOME_PAI"] ?? "-";
+    $estciv = $d["ESTCIV"] ?? "-";
+
+    // guarda emails e endereços em sessão (importante)
+    $_SESSION["last_email"]     = $r["EMAIL"];
+    $_SESSION["last_endereco"]  = $r["ENDERECOS"];
+
+    $msg = "🕵️ *Consulta CPF*\n\n".
+    "🪪 *Nome:* $nome\n".
+    "🧬 *Sexo:* $sexo\n".
+    "🎂 *Nascimento:* $nasc\n".
+    "👩 *Mãe:* $mae\n".
+    "👨 *Pai:* $pai\n".
+    "💍 *Estado civil:* $estciv\n\n".
+    "👇 Escolha abaixo:";
+
+    $keyboard = [
+        "inline_keyboard" => [
+            [["text" => "📧 Emails", "callback_data" => "cpf_emails"]],
+            [["text" => "🏠 Endereços", "callback_data" => "cpf_ends"]],
+            [["text" => "🗑 Apagar", "callback_data" => "apagar_msg"]]
+        ]
+    ];
+
+    sendMessage($chat_id, $msg, $keyboard);
+    exit;
+}
+
+
+// callbacks de navegação
+
+if ($callback_query == "cpf_emails") {
+
+    $emailTexto = "";
+    if (!empty($_SESSION["last_email"])) {
+        foreach ($_SESSION["last_email"] as $e) {
+            $emailTexto .= "✉️ ".$e["EMAIL"]."\n";
+        }
+    } else {
+        $emailTexto = "Nenhum";
+    }
+
+    $txt = "📧 *Emails encontrados:*\n\n".$emailTexto;
+
+    $k = [
+        "inline_keyboard" => [
+            [["text" => "⬅️ Voltar", "callback_data" => "cpf_voltar"]],
+            [["text" => "🗑 Apagar", "callback_data" => "apagar_msg"]],
+        ]
+    ];
+
+    editMessageText($chat_id, $message_id, $txt, $k);
+    exit;
+}
+
+
+if ($callback_query == "cpf_ends") {
+
+    $endTexto = "";
+    foreach ($_SESSION["last_endereco"] as $end) {
+        $endTexto .= "📍 *".$end["LOGR_NOME"].", ".$end["LOGR_NUMERO"]."* - ".$end["BAIRRO"]." - ".$end["CIDADE"]."/".$end["UF"]."\n\n";
+    }
+
+    $txt = "🏠 *Endereços:* \n\n".$endTexto;
+
+    $k = [
+        "inline_keyboard" => [
+            [["text" => "⬅️ Voltar", "callback_data" => "cpf_voltar"]],
+            [["text" => "🗑 Apagar", "callback_data" => "apagar_msg"]],
+        ]
+    ];
+
+    editMessageText($chat_id, $message_id, $txt, $k);
+    exit;
+}
+
+
+if ($callback_query == "cpf_voltar") {
+
+    $txt = "🕵️ *Consulta CPF*\n\n".
+    "✅ Dados encontrados.\n\n".
+    "👇 escolha o que quer ver:";
+
+    $keyboard = [
+        "inline_keyboard" => [
+            [["text" => "📧 Emails", "callback_data" => "cpf_emails"]],
+            [["text" => "🏠 Endereços", "callback_data" => "cpf_ends"]],
+            [["text" => "🗑 Apagar", "callback_data" => "apagar_msg"]]
+        ]
+    ];
+
+    editMessageText($chat_id, $message_id, $txt, $keyboard);
+    exit;
+}
+
+
+// callback apagar
+if ($callback_query == "apagar_msg") {
+    file_get_contents($apiURL."deleteMessage?chat_id=".$chat_id."&message_id=".$message_id);
+    exit;
+}
+
 // COMANDO /info
 if ($message == "/info") {
     sendMessage($chat_id,
