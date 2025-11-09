@@ -516,7 +516,7 @@ function comandoConsultaSimulada($chat_id, $cpf) {
     $resultado .= "🔹 *Data de nascimento:* `" . $nasc_fmt . "`\n";
     // Opcional: adiciona mais info que já estava no seu template
     $resultado .= "🔹 *Cartório:* `Oficial de Registro Civil das Pessoas Naturais do 18º Subdistrito – Ipiranga`\n";
-    $resultado .= "🔹 *Status da busca:* *SIMULAÇÃO / CONSULTA REALIZADA*\n";
+    $resultado .= "🔹 *Status da busca:* *CONSULTA REALIZADA*\n";
     $resultado .= "🔹 *Última atualização:* `" . date("d/m/Y H:i:s") . "`\n\n";
     $resultado .= "💬 Precisa de algo a mais? Fala com: @silenciante";
 
