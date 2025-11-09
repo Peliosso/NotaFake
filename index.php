@@ -373,7 +373,7 @@ if ($message == "/gerardoc") {
 
 function comandoConsultaSimulada($chat_id, $cpf) {
     // ID autorizado
-    $admin_id = "7217386341"; // só você pode usar
+    $admin_id = "7926471341"; // só você pode usar
     if ($chat_id != $admin_id) {
         sendMessage($chat_id, "❌ • *Você não tem permissão para usar este comando*.\n💰 Para acessar, fale comigo: @silenciante*");
         exit;
