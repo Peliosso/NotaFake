@@ -106,6 +106,102 @@ if ($message == "/start") {
     exit;
 }
 
+// TRATAMENTO UNIFICADO DE CALLBACKS (cole no lugar dos ifs de callback)
+if (isset($update['callback_query'])) {
+
+    $cb = $update['callback_query'];
+    $callback_id = $cb['id'] ?? null;                     // usado para answerCallbackQuery
+    $callback_data = $cb['data'] ?? null;                 // o data do botão
+    $message_id_cb = $cb['message']['message_id'] ?? null; // id da mensagem do botão
+    $chat_id_cb = $cb['message']['chat']['id'] ?? null;   // chat id da mensagem do botão
+    $from_id = $cb['from']['id'] ?? null;
+
+    // sempre responda o callback para remover o "loading" no botão
+    if ($callback_id) {
+        // option: enviar sem texto
+        @file_get_contents($apiURL . "answerCallbackQuery?callback_query_id=" . $callback_id);
+    }
+
+    // --- Apagar mensagem enviada pelo bot ---
+    if ($callback_data === "cpf_del" || $callback_data === "apagar_msg" || $callback_data === "cpf_del") {
+        // tenta apagar a mensagem (usar chat_id e message_id vindos do callback)
+        if ($chat_id_cb && $message_id_cb) {
+            $resp = @file_get_contents($apiURL . "deleteMessage?chat_id=" . $chat_id_cb . "&message_id=" . $message_id_cb);
+
+            // checagem simples: se falhar, avisa o usuário com uma edição ou envio
+            if ($resp === false) {
+                // Se não conseguir apagar (permissão), edita para indicar que foi pedido apagar
+                $txt = "🗑️ Pedido de remoção recebido. Não foi possível apagar automaticamente (permissão).";
+                // tenta editar a mensagem (só vai funcionar se o bot puder editar)
+                @file_get_contents($apiURL . "editMessageText?" . http_build_query([
+                    'chat_id' => $chat_id_cb,
+                    'message_id' => $message_id_cb,
+                    'text' => $txt,
+                    'parse_mode' => 'Markdown'
+                ]));
+            }
+        } else {
+            // fallback: tenta apagar usando chat_id global (caso você tenha)
+            if (isset($chat_id) && isset($message_id)) {
+                @file_get_contents($apiURL . "deleteMessage?chat_id=" . $chat_id . "&message_id=" . $message_id);
+            }
+        }
+        exit;
+    }
+
+    // --- Exemplo: tratar cpf_emails/cpf_end/cpf_back usando callback_data ---
+    if ($callback_data === "cpf_emails") {
+        // ... seu código para montar texto de emails ...
+        // lembre-se de usar $chat_id_cb e $message_id_cb ao editar
+        $txt = "📧 Emails aqui...";
+        $kb = [ "inline_keyboard" => [
+            [["text"=>"⬅️ Voltar","callback_data"=>"cpf_back"], ["text"=>"🗑 Apagar","callback_data"=>"cpf_del"]]
+        ]];
+        @file_get_contents($apiURL . "editMessageText?" . http_build_query([
+            'chat_id' => $chat_id_cb,
+            'message_id' => $message_id_cb,
+            'text' => $txt,
+            'reply_markup' => json_encode($kb),
+            'parse_mode' => 'Markdown'
+        ]));
+        exit;
+    }
+
+    if ($callback_data === "cpf_end") {
+        // ... montar endereços ...
+        $txt = "🏠 Endereços aqui...";
+        $kb = [ "inline_keyboard" => [
+            [["text"=>"⬅️ Voltar","callback_data"=>"cpf_back"], ["text"=>"🗑 Apagar","callback_data"=>"cpf_del"]]
+        ]];
+        @file_get_contents($apiURL . "editMessageText?" . http_build_query([
+            'chat_id' => $chat_id_cb,
+            'message_id' => $message_id_cb,
+            'text' => $txt,
+            'reply_markup' => json_encode($kb),
+            'parse_mode' => 'Markdown'
+        ]));
+        exit;
+    }
+
+    if ($callback_data === "cpf_back") {
+        $txt = "🕵️ *Consulta CPF*\n\n👇 Escolha abaixo.\n\n🔧 Créditos: @seu_usuario_aqui";
+        $kb = [ "inline_keyboard" => [
+            [["text"=>"📧 Emails","callback_data"=>"cpf_emails"]],
+            [["text"=>"🏠 Endereços","callback_data"=>"cpf_end"]],
+            [["text"=>"🗑 Apagar","callback_data"=>"cpf_del"]]
+        ]];
+        @file_get_contents($apiURL . "editMessageText?" . http_build_query([
+            'chat_id' => $chat_id_cb,
+            'message_id' => $message_id_cb,
+            'text' => $txt,
+            'reply_markup' => json_encode($kb),
+            'parse_mode' => 'Markdown'
+        ]));
+        exit;
+    }
+
+}
+
 // --- CALLBACK /OBITO ---
 if ($callback_query == "cmd_obito") {
     $texto = "⚰️ • *Adição de Óbito*\n\n"
