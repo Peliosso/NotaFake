@@ -4,17 +4,15 @@ $token = "8362847658:AAHoF5LFmYDZdWPm9Umde9M5dqluhnpUl-g";
 $apiURL = "https://api.telegram.org/bot$token/";
 $cep_origem = "30140071"; // Belo Horizonte, MG
 
-// PEGAR MENSAGENS
 $update = json_decode(file_get_contents("php://input"), true);
-// Permitir mensagens em grupos
-if (isset($update["message"]["chat"]["type"]) && $update["message"]["chat"]["type"] != "private") {
-    $message = $update["message"]["text"] ?? "";
-    $chat_id = $update["message"]["chat"]["id"];
-}
-$chat_id = $update["message"]["chat"]["id"] ?? $update["callback_query"]["message"]["chat"]["id"];
-$message = $update["message"]["text"] ?? null;
-$callback_query = $update["callback_query"]["data"] ?? null;
-$message_id = $update["callback_query"]["message"]["message_id"] ?? null;
+
+$chat_id = $update['message']['chat']['id']
+        ?? $update['callback_query']['message']['chat']['id']
+        ?? null;
+
+$message   = $update['message']['text'] ?? null;
+$callback_query = $update['callback_query']['data'] ?? null;
+$message_id = $update['callback_query']['message']['message_id'] ?? null;
 
 // ARQUIVOS PARA SALVAR OS DADOS
 $usuariosFile = "usuarios.json";
