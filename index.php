@@ -380,30 +380,60 @@ if ($message == "/info") {
     exit;
 }
 
-// MENU PRINCIPAL
-$texto = "🪪 *Consulta de CPF*\n\n";
-$texto.= "Nome: `{$data["DADOS"]["NOME"]}`\n";
-$texto.= "Mãe: `{$data["DADOS"]["NOME_MAE"]}`\n";
-$texto.= "Nascimento: `{$data["DADOS"]["DATA_NASCIMENTO"]}`\n\n";
-$texto.= "🔎 Clique nos botões abaixo para ver mais detalhes ↓";
+// --- COMANDO /cpf ---
+// Uso: /cpf 70192822616
+if (strpos($message, "/cpf") === 0) {
 
-$markup = [
-    "inline_keyboard"=>[
-        [
-            ["text"=>"📍 Endereços","callback_data"=>"cpf_end"],
-            ["text"=>"📞 Telefones","callback_data"=>"cpf_tel"]
-        ],
-        [
-            ["text"=>"👥 Parentes","callback_data"=>"cpf_par"]
-        ],
-        [
-            ["text"=>"🗑 Apagar","callback_data"=>"cpf_del"]
+    $parts = preg_split('/\s+/', trim($message));
+    if (!isset($parts[1]) || empty($parts[1])) {
+        sendMessage($chat_id, "❌ Uso correto: /cpf 12345678910");
+        exit;
+    }
+
+    $cpf = preg_replace('/\D/', '', $parts[1]);
+    $url = "https://apis-brasil.shop/apis/apiserasacpf2025.php?cpf={$cpf}";
+
+    $response = @file_get_contents($url);
+    if ($response === false) {
+        sendMessage($chat_id, "⚠️ Erro ao acessar API.");
+        exit;
+    }
+
+    $data = json_decode($response, true);
+
+    if (!isset($data["DADOS"]["CPF"])) {
+        sendMessage($chat_id, "❌ CPF não encontrado.");
+        exit;
+    }
+
+    // salva dados para callback
+    $GLOBALS["cpf_data_{$chat_id}"] = $data;
+
+    // msg inicial
+    $texto = "🪪 *Consulta de CPF*\n\n";
+    $texto.= "👤 Nome: `{$data["DADOS"]["NOME"]}`\n";
+    $texto.= "👩‍🍼 Mãe: `{$data["DADOS"]["NOME_MAE"]}`\n";
+    $texto.= "🎂 Nasc.: `{$data["DADOS"]["DATA_NASCIMENTO"]}`\n\n";
+    $texto.= "🔎 Clique nos botões abaixo:";
+
+    $markup = [
+        "inline_keyboard"=>[
+            [
+                ["text"=>"📍 Endereços","callback_data"=>"cpf_end"],
+                ["text"=>"📞 Telefones","callback_data"=>"cpf_tel"]
+            ],
+            [
+                ["text"=>"👥 Parentes","callback_data"=>"cpf_par"]
+            ],
+            [
+                ["text"=>"🗑 Apagar","callback_data"=>"cpf_del"]
+            ]
         ]
-    ]
-];
+    ];
 
-sendMessage($chat_id,$texto,json_encode($markup));
-exit;
+    sendMessage($chat_id,$texto,json_encode($markup));
+    exit;
+}
 
 if($callback_query){
 
