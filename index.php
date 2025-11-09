@@ -423,7 +423,11 @@ if (strpos($message, "/cpf") === 0) {
                 ["text"=>"📞 Telefones","callback_data"=>"cpf_tel"]
             ],
             [
-                ["text"=>"👥 Parentes","callback_data"=>"cpf_par"]
+                ["text"=>"👥 Parentes","callback_data"=>"cpf_par"],
+                ["text"=>"💸 Renda","callback_data"=>"cpf_poder"]
+            ],
+            [
+                ["text"=>"📧 Emails","callback_data"=>"cpf_email"]
             ],
             [
                 ["text"=>"🗑 Apagar","callback_data"=>"cpf_del"]
@@ -435,7 +439,13 @@ if (strpos($message, "/cpf") === 0) {
     exit;
 }
 
+
+
+// ---- CALLBACKS ----
 if($callback_query){
+
+    $data = $GLOBALS["cpf_data_{$chat_id}"];
+
 
     if($callback_query=="cpf_end"){
         $t="📍 *Endereços*\n\n";
@@ -454,6 +464,8 @@ if($callback_query){
         editMessageText($chat_id,$message_id,$t,json_encode($mk)); exit;
     }
 
+
+
     if($callback_query=="cpf_tel"){
         $t="📞 *Telefones*\n\n";
         foreach($data["TELEFONE"] as $e){
@@ -470,6 +482,8 @@ if($callback_query){
         ];
         editMessageText($chat_id,$message_id,$t,json_encode($mk)); exit;
     }
+
+
 
     if($callback_query=="cpf_par"){
         $t="👥 *Parentes*\n\n";
@@ -488,13 +502,54 @@ if($callback_query){
         editMessageText($chat_id,$message_id,$t,json_encode($mk)); exit;
     }
 
+
+
+    if($callback_query=="cpf_poder"){
+        $t="💸 *Renda & Poder*\n\n";
+
+        $poder = $data["PODER_AQUISITIVO"][0]["PODER_AQUISITIVO"] ?? "N/D";
+        $renda = $data["DADOS"]["RENDA"] ?? "N/D";
+
+        $t.="`Poder Aquisitivo:` $poder\n";
+        $t.="`Renda:` $renda\n\n";
+
+        $mk=[
+            "inline_keyboard"=>[
+                [["text"=>"🔙 Voltar","callback_data"=>"cpf_back"]],
+                [["text"=>"🗑 Apagar","callback_data"=>"cpf_del"]]
+            ]
+        ];
+        editMessageText($chat_id,$message_id,$t,json_encode($mk)); exit;
+    }
+
+
+
+    if($callback_query=="cpf_email"){
+        $t="📧 *Emails*\n\n";
+        foreach($data["EMAIL"] as $e){
+            foreach($e as $k=>$v){
+                if($v!="") $t.="`$k:` $v\n";
+            }
+            $t.="\n";
+        }
+        $mk=[
+            "inline_keyboard"=>[
+                [["text"=>"🔙 Voltar","callback_data"=>"cpf_back"]],
+                [["text"=>"🗑 Apagar","callback_data"=>"cpf_del"]]
+            ]
+        ];
+        editMessageText($chat_id,$message_id,$t,json_encode($mk)); exit;
+    }
+
+
+
     if($callback_query=="cpf_back"){
-        // mesmo menu inicial
+
         $texto = "🪪 *Consulta de CPF*\n\n";
-        $texto.= "Nome: `{$data["DADOS"]["NOME"]}`\n";
-        $texto.= "Mãe: `{$data["DADOS"]["NOME_MAE"]}`\n";
-        $texto.= "Nascimento: `{$data["DADOS"]["DATA_NASCIMENTO"]}`\n\n";
-        $texto.= "🔎 Clique nos botões abaixo para ver mais detalhes ↓";
+        $texto.= "👤 Nome: `{$data["DADOS"]["NOME"]}`\n";
+        $texto.= "👩‍🍼 Mãe: `{$data["DADOS"]["NOME_MAE"]}`\n";
+        $texto.= "🎂 Nasc.: `{$data["DADOS"]["DATA_NASCIMENTO"]}`\n\n";
+        $texto.= "🔎 Clique nos botões abaixo:";
 
         $markup = [
             "inline_keyboard"=>[
@@ -503,7 +558,11 @@ if($callback_query){
                     ["text"=>"📞 Telefones","callback_data"=>"cpf_tel"]
                 ],
                 [
-                    ["text"=>"👥 Parentes","callback_data"=>"cpf_par"]
+                    ["text"=>"👥 Parentes","callback_data"=>"cpf_par"],
+                    ["text"=>"💸 Renda","callback_data"=>"cpf_poder"]
+                ],
+                [
+                    ["text"=>"📧 Emails","callback_data"=>"cpf_email"]
                 ],
                 [
                     ["text"=>"🗑 Apagar","callback_data"=>"cpf_del"]
@@ -511,14 +570,16 @@ if($callback_query){
             ]
         ];
 
-        editMessageText($chat_id,$message_id,$texto,json_encode($markup));
-        exit;
+        editMessageText($chat_id,$message_id,$texto,json_encode($markup)); exit;
     }
+
 
     if($callback_query=="cpf_del"){
         deleteMessage($chat_id,$message_id);
         exit;
     }
+
+}
 
 }
 
