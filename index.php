@@ -123,10 +123,14 @@ if (isset($update['callback_query'])) {
     }
 
     // --- Apagar mensagem enviada pelo bot ---
-    if ($callback_data === "cpf_del" || $callback_data === "apagar_msg" || $callback_data === "cpf_del") {
-        // tenta apagar a mensagem (usar chat_id e message_id vindos do callback)
-        if ($chat_id_cb && $message_id_cb) {
-            $resp = @file_get_contents($apiURL . "deleteMessage?chat_id=" . $chat_id_cb . "&message_id=" . $message_id_cb);
+    if (in_array($callback_data, ["cpf_del", "apagar_msg", "cpf_full_del"])) {
+    $cb = $update['callback_query'];
+    $chat_id_cb = $cb['message']['chat']['id'];
+    $message_id_cb = $cb['message']['message_id'];
+
+    @file_get_contents($apiURL . "deleteMessage?chat_id=$chat_id_cb&message_id=$message_id_cb");
+    exit;
+}
 
             // checagem simples: se falhar, avisa o usuário com uma edição ou envio
             if ($resp === false) {
