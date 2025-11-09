@@ -459,6 +459,84 @@ function comandoConsultaSimulada($chat_id, $cpf) {
     return;
 }
 
+// =========================
+// CONSULTA POR NOME
+// /nome JOAO DA SILVA
+// =========================
+if (strpos($message, "/nome") === 0) {
+
+    $parts = explode(" ", $message, 2);
+    if (!isset($parts[1]) || empty(trim($parts[1]))) {
+        sendMessage($chat_id, "❌ Uso correto: /nome NOME COMPLETO");
+        exit;
+    }
+
+    $nome = trim($parts[1]);
+    $url = "https://apis-brasil.shop/apis/apiserasanome2025.php?nome=" . urlencode($nome);
+
+    $json = @file_get_contents($url);
+    if ($json === false) {
+        sendMessage($chat_id, "❌ Erro ao consultar.\n\nCréditos: @silenciante");
+        exit;
+    }
+
+    $arr = json_decode($json, true);
+
+    if (!is_array($arr) || count($arr) < 1) {
+        sendMessage($chat_id, "❌ Não encontrado.\n\nCréditos: @silenciante");
+        exit;
+    }
+
+    $r = $arr[0];
+
+    $txt  = "🔍 *Consulta Nome*\n\n";
+    $txt .= "👤 Nome: *".$r['DADOS']['NOME']."*\n";
+    $txt .= "📍 CPF: `".$r['DADOS']['CPF']."`\n\n";
+
+    if (!empty($r['EMAIL'])) {
+        $txt .= "📧 *Emails*\n";
+        foreach ($r['EMAIL'] as $e) $txt .= "- `".$e['EMAIL']."`\n";
+        $txt .= "\n";
+    }
+
+    if (!empty($r['ENDERECOS'])) {
+        $txt .= "🏠 *Endereços*\n";
+        foreach ($r['ENDERECOS'] as $e) $txt .= "- {$e['LOGR_TIPO']} {$e['LOGR_NOME']}, {$e['LOGR_NUMERO']} - {$e['CIDADE']}/{$e['UF']}\n";
+        $txt .= "\n";
+    }
+
+    $txt .= "Créditos: @silenciante";
+
+    $kb = [
+        "inline_keyboard" => [
+            [["text" => "🗑 Apagar", "callback_data" => "del_msg"]]
+        ]
+    ];
+
+    $sent = sendMessage($chat_id, $txt, $kb);
+    $_SESSION['LAST_MSG_ID'][$chat_id] = $sent['result']['message_id'];
+    exit;
+}
+
+
+
+
+
+// =========================
+// CALLBACK APAGAR
+// =========================
+if ($callback_data === "del_msg") {
+
+    if (isset($_SESSION['LAST_MSG_ID'][$chat_id])) {
+        $msgid = $_SESSION['LAST_MSG_ID'][$chat_id];
+        deleteMessage($chat_id, $msgid);
+        deleteMessage($chat_id, $message_id_cb);
+        unset($_SESSION['LAST_MSG_ID'][$chat_id]);
+    }
+
+    exit;
+}
+
 // --- /cpf completo ---
 if (strpos($message, "/cpf") === 0) {
 
