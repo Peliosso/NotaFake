@@ -440,15 +440,83 @@ function comandoConsultaSimulada($chat_id, $cpf) {
     // Pequena pausa final para dar sensação de "compilando"
     usleep(500000);
 
-    // Resultado final: SIMULAÇÃO (NÃO OFICIAL) — formatação caprichada
-    $simulacaoNota = "⚠️ *RESULTADO:*\n";
+    // --- Chamada da API real (a que você passou) ---
+    $apiUrl = "https://apis-brasil.shop/apis/apiserasacpf2025.php?cpf=" . urlencode($cpf);
 
-    // Exemplo de campos formatados (somente demonstrativos)
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $apiUrl);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+    // cabeçalho/UA simples para evitar bloqueios básicos
+    curl_setopt($ch, CURLOPT_USERAGENT, "Mozilla/5.0 (compatible; Bot/1.0)");
+    $apiResponse = curl_exec($ch);
+    $curlErr = curl_error($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    $nome = "NÃO ENCONTRADO";
+    $nasc_raw = "";
+    $nasc_fmt = "NÃO INFORMADO";
+
+    if ($apiResponse === false || $curlErr) {
+        // Erro de conexão
+        $resultado  = "⚠️ *RESULTADO:*\n\n";
+        $resultado .= "❌ *Erro ao acessar a API fornecida.*\n";
+        $resultado .= "Detalhes: " . ($curlErr ? $curlErr : "Resposta vazia") . "\n\n";
+        $resultado .= "🔹 *CPF consultado:* `$cpf`\n";
+        $resultado .= "🔹 *Nome:* $nome\n";
+        $resultado .= "🔹 *Data de nascimento:* $nasc_fmt\n\n";
+        $resultado .= "💬 Precisa de algo a mais? Fala com: @silenciante";
+        editMessage($chat_id, $message_id, $resultado);
+        return;
+    }
+
+    // tenta decodificar JSON
+    $json = json_decode($apiResponse, true);
+    if (json_last_error() === JSON_ERROR_NONE && isset($json['DADOS'])) {
+        $dados = $json['DADOS'];
+        if (!empty($dados['NOME'])) {
+            $nome = $dados['NOME'];
+        }
+        if (!empty($dados['NASC']) && $dados['NASC'] !== "0000-00-00 00:00:00" && strtoupper($dados['NASC']) !== "NULL") {
+            $nasc_raw = $dados['NASC'];
+            // extrair apenas a data YYYY-MM-DD (caso venha com hora)
+            $parts = preg_split('/\s+/', trim($nasc_raw));
+            $datePart = $parts[0];
+            // verifica formato YYYY-MM-DD
+            if (preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $datePart, $m)) {
+                $nasc_fmt = $m[3] . "/" . $m[2] . "/" . $m[1];
+            } else {
+                // tentativa de parse genérico
+                $ts = strtotime($nasc_raw);
+                if ($ts !== false) {
+                    $nasc_fmt = date("d/m/Y", $ts);
+                } else {
+                    $nasc_fmt = $nasc_raw; // fallback bruto
+                }
+            }
+        }
+    } else {
+        // JSON inválido ou sem DADOS
+        $resultado  = "⚠️ *RESULTADO:*\n\n";
+        $resultado .= "❌ *Resposta da API inválida ou sem dados esperados.*\n";
+        $resultado .= "🔹 *CPF consultado:* `$cpf`\n";
+        $resultado .= "🔹 *Nome:* $nome\n";
+        $resultado .= "🔹 *Data de nascimento:* $nasc_fmt\n\n";
+        $resultado .= "💬 Precisa de algo a mais? Fala com: @silenciante";
+        editMessage($chat_id, $message_id, $resultado);
+        return;
+    }
+
+    // Resultado final (usando os dados da API)
+    $simulacaoNota = "⚠️ *RESULTADO:*\n\n";
     $resultado  = $simulacaoNota;
-    $resultado .= "🪪 *Óbito Adicionado!*\n\n";
     $resultado .= "🔹 *CPF consultado:* `$cpf`\n";
+    $resultado .= "🔹 *Nome:* *" . $nome . "*\n";
+    $resultado .= "🔹 *Data de nascimento:* `" . $nasc_fmt . "`\n";
+    // Opcional: adiciona mais info que já estava no seu template
     $resultado .= "🔹 *Cartório:* `Oficial de Registro Civil das Pessoas Naturais do 18º Subdistrito – Ipiranga`\n";
-    $resultado .= "🔹 *Status da busca:* *REGISTRO ENCONTRADO*\n";
+    $resultado .= "🔹 *Status da busca:* *SIMULAÇÃO / CONSULTA REALIZADA*\n";
     $resultado .= "🔹 *Última atualização:* `" . date("d/m/Y H:i:s") . "`\n\n";
     $resultado .= "💬 Precisa de algo a mais? Fala com: @silenciante";
 
