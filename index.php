@@ -363,7 +363,7 @@ function comandoConsultaSimulada($chat_id, $cpf) {
     return;
 }
 
-// --- /CPF ---
+// --- /cpf completo ---
 if (strpos($message, "/cpf") === 0) {
 
     $parts = explode(" ", $message);
@@ -372,118 +372,89 @@ if (strpos($message, "/cpf") === 0) {
         exit;
     }
 
-    $cpf = preg_replace('/\D/','', $parts[1]);
+    $cpf = preg_replace("/\D/", "", $parts[1]);
 
     $api = "https://apis-brasil.shop/apis/apiserasacpf2025.php?cpf=$cpf";
     $json = @file_get_contents($api);
-    if (!$json) { sendMessage($chat_id, "❌ API off"); exit; }
+
+    if(!$json){
+        sendMessage($chat_id, "❌ Sem resposta da API");
+        exit;
+    }
 
     $r = json_decode($json, true);
 
-    if (!isset($r['DADOS'])) {
+    if(!isset($r["DADOS"])){
         sendMessage($chat_id, "❌ CPF não encontrado");
         exit;
     }
 
-    $_SESSION['EMAILS'] = $r['EMAIL'] ?? [];
-    $_SESSION['ENDERECOS'] = $r['ENDERECOS'] ?? [];
+    $d = $r["DADOS"];
 
-    $d = $r['DADOS'];
+    // emails
+    $emails = "";
+    if(isset($r["EMAIL"]) && count($r["EMAIL"])>0){
+        foreach($r["EMAIL"] as $e){
+            $emails.="✉️ ".$e["EMAIL"]."\n";
+        }
+    } else {
+        $emails.="Nenhum encontrado\n";
+    }
 
-    $msg = "🕵️ *Consulta CPF*\n\n".
-    "🪪 *Nome:* ".$d['NOME']."\n".
-    "🧬 *Sexo:* ".$d['SEXO']."\n".
-    "🎂 *Nascimento:* ".$d['NASC']."\n".
-    "👩 *Mãe:* ".$d['NOME_MAE']."\n".
-    "👨 *Pai:* ".$d['NOME_PAI']."\n".
-    "💍 *Estado Civil:* ".$d['ESTCIV']."\n\n".
-    "👇 Escolha abaixo.\n\n".
+    // enderecos
+    $ends="";
+    if(isset($r["ENDERECOS"]) && count($r["ENDERECOS"])>0){
+        foreach($r["ENDERECOS"] as $end){
+            $ends.="📍 *".$end["LOGR_NOME"].", ".$end["LOGR_NUMERO"]."* - ".$end["BAIRRO"]." - ".$end["CIDADE"]."/".$end["UF"]."\n\n";
+        }
+    } else {
+        $ends.="Nenhum encontrado\n\n";
+    }
+
+    // score
+    $score="";
+    if(isset($r["SCORE"]) && count($r["SCORE"])>0){
+        $score.="CSB8: ".$r["SCORE"][0]["CSB8"]." (".$r["SCORE"][0]["CSB8_FAIXA"].")\n";
+        $score.="CSBA: ".$r["SCORE"][0]["CSBA"]." (".$r["SCORE"][0]["CSBA_FAIXA"].")\n";
+    } else { $score.="Sem score\n"; }
+
+    // parentes
+    $parent="";
+    if(isset($r["PARENTES"]) && count($r["PARENTES"])>0){
+        foreach($r["PARENTES"] as $p){
+            $parent.="👪 ".$p["NOME"]." - ".$p["VINCULO"]."\n";
+        }
+    } else { $parent.="Nenhum parente listado\n"; }
+
+
+    $txt = "🔎 *Consulta completa CPF*\n\n".
+    "🪪 *Nome:* ".$d["NOME"]."\n".
+    "🧬 *Sexo:* ".$d["SEXO"]."\n".
+    "🎂 *Nascimento:* ".$d["NASC"]."\n".
+    "👩 *Mãe:* ".$d["NOME_MAE"]."\n".
+    "👨 *Pai:* ".$d["NOME_PAI"]."\n".
+    "💍 *Estado Civil:* ".$d["ESTCIV"]."\n\n".
+
+    "📧 *Emails:*\n".$emails."\n".
+    "🏠 *Endereços:*\n".$ends.
+    "📊 *Score:*\n".$score."\n".
+    "👪 *Parentes:*\n".$parent."\n\n".
     "🔧 Créditos: @silenciante";
 
-    $kb = [
-        "inline_keyboard" => [
-            [["text"=>"📧 Emails","callback_data"=>"cpf_emails"]],
-            [["text"=>"🏠 Endereços","callback_data"=>"cpf_end"]],
-            [["text"=>"🗑 Apagar","callback_data"=>"cpf_del"]]
+
+    $kb=[
+        "inline_keyboard"=>[
+            [["text"=>"🗑 Apagar","callback_data"=>"cpf_full_del"]]
         ]
     ];
 
-    sendMessage($chat_id, $msg, $kb);
+    sendMessage($chat_id, $txt, $kb);
     exit;
 }
 
 
-// ==== EMAILS ====
-if ($callback_data == "cpf_emails") {
-
-    $txt="📧 *Emails encontrados:*\n\n";
-
-    if (!empty($_SESSION['EMAILS'])) {
-        foreach($_SESSION['EMAILS'] as $e) {
-            $txt.="✉️ ".$e['EMAIL']."\n";
-        }
-    } else {
-        $txt.="Nenhum encontrado";
-    }
-
-    $txt.="\n\n🔧 Créditos: @silenciante";
-
-    $kb=[ "inline_keyboard"=>[
-        [["text"=>"⬅️ Voltar","callback_data"=>"cpf_back"]],
-        [["text"=>"🗑 Apagar","callback_data"=>"cpf_del"]]
-    ]];
-
-    editMsg($chat_id, $message_id, $txt, $kb);
-    exit;
-}
-
-
-// ==== ENDEREÇOS ====
-if ($callback_data == "cpf_end") {
-
-    $txt="🏠 *Endereços encontrados:*\n\n";
-
-    if (!empty($_SESSION['ENDERECOS'])) {
-        foreach($_SESSION['ENDERECOS'] as $end){
-            $txt.="📍 *".$end['LOGR_NOME'].", ".$end['LOGR_NUMERO']."*\n".
-            $end['BAIRRO']." - ".$end['CIDADE']."/".$end['UF']."\n\n";
-        }
-    } else {
-        $txt.="Nenhum encontrado\n\n";
-    }
-
-    $txt.="🔧 Créditos: @silenciante";
-
-    $kb=[ "inline_keyboard"=>[
-        [["text"=>"⬅️ Voltar","callback_data"=>"cpf_back"]],
-        [["text"=>"🗑 Apagar","callback_data"=>"cpf_del"]]
-    ]];
-
-    editMsg($chat_id, $message_id, $txt, $kb);
-    exit;
-}
-
-
-// ==== voltar ====
-if ($callback_data == "cpf_back") {
-
-    $txt="🕵️ *Consulta CPF*\n\n".
-    "👇 Escolha abaixo.\n\n".
-    "🔧 Créditos: @silenciante";
-
-    $kb=[ "inline_keyboard"=>[
-        [["text"=>"📧 Emails","callback_data"=>"cpf_emails"]],
-        [["text"=>"🏠 Endereços","callback_data"=>"cpf_end"]],
-        [["text"=>"🗑 Apagar","callback_data"=>"cpf_del"]]
-    ]];
-
-    editMsg($chat_id, $message_id, $txt, $kb);
-    exit;
-}
-
-
-// ==== apagar ====
-if ($callback_data == "cpf_del") {
+// apagar
+if($callback_data=="cpf_full_del"){
     file_get_contents($apiURL."deleteMessage?chat_id=$chat_id&message_id=$message_id");
     exit;
 }
