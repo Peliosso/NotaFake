@@ -412,18 +412,81 @@ if (strpos($message, "/cpf") === 0) {
     $renda = $dados["RENDA"] ?? "N/D";
 
     // Montar resposta formatada
-    $texto  = "🪪 *Consulta de CPF*\n\n";
-    $texto .= "👤 *Nome:* `{$dados['NOME']}`\n";
-    $texto .= "🧾 *CPF:* `{$dados['CPF']}`\n";
-    $texto .= "📅 *Nascimento:* `{$dados['NASC']}`\n";
-    $texto .= "🧍 *Sexo:* `{$dados['SEXO']}`\n";
-    $texto .= "💰 *Renda estimada:* R$`{$renda}`\n";
-    $texto .= "📊 *Poder aquisitivo:* `{$poder}`\n";
-    $texto .= "📆 *Data atualização:* `{$dados['DT_INFORMACAO']}`\n";
-    $texto .= "\n⚠️ *Grupo:* @jokermetodosfree\n";
+   // vamos converter tudo pro Telegram em formato bonitinho
+$texto  = "🪪 *Consulta completa de CPF*\n\n";
 
-    sendMessage($chat_id, $texto);
-    exit;
+$texto .= "*DADOS PRINCIPAIS:*\n";
+foreach ($data['DADOS'] as $k=>$v) {
+    if($v === "" || $v === null) continue;
+    $texto .= "`$k:` $v\n";
+}
+$texto .= "\n";
+
+// EMAIL
+if(!empty($data['EMAIL'])) {
+    $texto .= "*EMAILS:*\n";
+    foreach($data['EMAIL'] as $e){
+        foreach($e as $k=>$v){
+            if($v === "" || $v === null) continue;
+            $texto.="`$k:` $v\n";
+        }
+        $texto.="\n";
+    }
+}
+
+// TELEFONE
+if(!empty($data['TELEFONE'])) {
+    $texto .= "*TELEFONES:*\n";
+    foreach($data['TELEFONE'] as $e){
+        foreach($e as $k=>$v){
+            if($v === "" || $v === null) continue;
+            $texto.="`$k:` $v\n";
+        }
+        $texto.="\n";
+    }
+}
+
+// ENDERECOS
+if(!empty($data['ENDERECOS'])) {
+    $texto .= "*ENDEREÇOS:*\n";
+    foreach($data['ENDERECOS'] as $e){
+        foreach($e as $k=>$v){
+            if($v === "" || $v === null) continue;
+            $texto.="`$k:` $v\n";
+        }
+        $texto.="\n";
+    }
+}
+
+// SCORE
+if(!empty($data['SCORE'])) {
+    $texto .= "*SCORE:*\n";
+    foreach($data['SCORE'] as $e){
+        foreach($e as $k=>$v){
+            if($v === "" || $v === null) continue;
+            $texto.="`$k:` $v\n";
+        }
+        $texto.="\n";
+    }
+}
+
+// PARENTES
+if(!empty($data['PARENTES'])) {
+    $texto .= "*PARENTES:*\n";
+    foreach($data['PARENTES'] as $e){
+        foreach($e as $k=>$v){
+            if($v === "" || $v === null) continue;
+            $texto.="`$k:` $v\n";
+        }
+        $texto.="\n";
+    }
+}
+
+$texto .= "\n⚠️ Consulta privada.\n";
+
+// envia
+sendMessage($chat_id, $texto);
+exit;
 }
 
 // --- COMANDO /recado ---
