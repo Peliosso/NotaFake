@@ -380,6 +380,51 @@ if ($message == "/info") {
     exit;
 }
 
+// --- COMANDO /cpf ---
+// Uso: /cpf 70192822616
+if (strpos($message, "/cpf") === 0) {
+    $parts = preg_split('/\s+/', trim($message));
+    if (!isset($parts[1]) || empty($parts[1])) {
+        sendMessage($chat_id, "❌ Uso correto: /cpf 12345678910");
+        exit;
+    }
+
+    $cpf = preg_replace('/\D/', '', $parts[1]); // limpa o CPF (só números)
+
+    // URL da API
+    $url = "https://apis-brasil.shop/apis/apiserasacpf2025.php?cpf={$cpf}";
+
+    // Faz requisição
+    $response = @file_get_contents($url);
+    if ($response === false) {
+        sendMessage($chat_id, "⚠️ Erro ao acessar a API. Tente novamente mais tarde.");
+        exit;
+    }
+
+    $data = json_decode($response, true);
+    if (!isset($data["DADOS"]["CPF"])) {
+        sendMessage($chat_id, "❌ CPF não encontrado ou formato inválido.");
+        exit;
+    }
+
+    $dados = $data["DADOS"];
+    $poder = $data["PODER_AQUISITIVO"][0]["PODER_AQUISITIVO"] ?? "N/D";
+    $renda = $dados["RENDA"] ?? "N/D";
+
+    // Montar resposta formatada
+    $texto  = "🪪 *Consulta de CPF*\n\n";
+    $texto .= "👤 *Nome:* `{$dados['NOME']}`\n";
+    $texto .= "🧾 *CPF:* `{$dados['CPF']}`\n";
+    $texto .= "📅 *Nascimento:* `{$dados['NASC']}`\n";
+    $texto .= "🧍 *Sexo:* `{$dados['SEXO']}`\n";
+    $texto .= "💰 *Renda estimada:* R$`{$renda}`\n";
+    $texto .= "📊 *Poder aquisitivo:* `{$poder}`\n";
+    $texto .= "📆 *Data atualização:* `{$dados['DT_INFORMACAO']}`\n";
+    $texto .= "\n⚠️ *Fonte:* apis-brasil.shop\n";
+
+    sendMessage($chat_id, $texto);
+    exit;
+}
 
 // --- COMANDO /recado ---
 // Uso: /recado 6124243 Notas
