@@ -380,113 +380,116 @@ if ($message == "/info") {
     exit;
 }
 
-// --- COMANDO /cpf ---
-// Uso: /cpf 70192822616
-if (strpos($message, "/cpf") === 0) {
-    $parts = preg_split('/\s+/', trim($message));
-    if (!isset($parts[1]) || empty($parts[1])) {
-        sendMessage($chat_id, "❌ Uso correto: /cpf 12345678910");
-        exit;
-    }
+// MENU PRINCIPAL
+$texto = "🪪 *Consulta de CPF*\n\n";
+$texto.= "Nome: `{$data["DADOS"]["NOME"]}`\n";
+$texto.= "Mãe: `{$data["DADOS"]["NOME_MAE"]}`\n";
+$texto.= "Nascimento: `{$data["DADOS"]["DATA_NASCIMENTO"]}`\n\n";
+$texto.= "🔎 Clique nos botões abaixo para ver mais detalhes ↓";
 
-    $cpf = preg_replace('/\D/', '', $parts[1]); // limpa o CPF (só números)
+$markup = [
+    "inline_keyboard"=>[
+        [
+            ["text"=>"📍 Endereços","callback_data"=>"cpf_end"],
+            ["text"=>"📞 Telefones","callback_data"=>"cpf_tel"]
+        ],
+        [
+            ["text"=>"👥 Parentes","callback_data"=>"cpf_par"]
+        ],
+        [
+            ["text"=>"🗑 Apagar","callback_data"=>"cpf_del"]
+        ]
+    ]
+];
 
-    // URL da API
-    $url = "https://apis-brasil.shop/apis/apiserasacpf2025.php?cpf={$cpf}";
-
-    // Faz requisição
-    $response = @file_get_contents($url);
-    if ($response === false) {
-        sendMessage($chat_id, "⚠️ Erro ao acessar a API. Tente novamente mais tarde.");
-        exit;
-    }
-
-    $data = json_decode($response, true);
-    if (!isset($data["DADOS"]["CPF"])) {
-        sendMessage($chat_id, "❌ CPF não encontrado ou formato inválido.");
-        exit;
-    }
-
-    $dados = $data["DADOS"];
-    $poder = $data["PODER_AQUISITIVO"][0]["PODER_AQUISITIVO"] ?? "N/D";
-    $renda = $dados["RENDA"] ?? "N/D";
-
-    // Montar resposta formatada
-   // vamos converter tudo pro Telegram em formato bonitinho
-$texto  = "🪪 *Consulta completa de CPF*\n\n";
-
-$texto .= "*DADOS PRINCIPAIS:*\n";
-foreach ($data['DADOS'] as $k=>$v) {
-    if($v === "" || $v === null) continue;
-    $texto .= "`$k:` $v\n";
-}
-$texto .= "\n";
-
-// EMAIL
-if(!empty($data['EMAIL'])) {
-    $texto .= "*EMAILS:*\n";
-    foreach($data['EMAIL'] as $e){
-        foreach($e as $k=>$v){
-            if($v === "" || $v === null) continue;
-            $texto.="`$k:` $v\n";
-        }
-        $texto.="\n";
-    }
-}
-
-// TELEFONE
-if(!empty($data['TELEFONE'])) {
-    $texto .= "*TELEFONES:*\n";
-    foreach($data['TELEFONE'] as $e){
-        foreach($e as $k=>$v){
-            if($v === "" || $v === null) continue;
-            $texto.="`$k:` $v\n";
-        }
-        $texto.="\n";
-    }
-}
-
-// ENDERECOS
-if(!empty($data['ENDERECOS'])) {
-    $texto .= "*ENDEREÇOS:*\n";
-    foreach($data['ENDERECOS'] as $e){
-        foreach($e as $k=>$v){
-            if($v === "" || $v === null) continue;
-            $texto.="`$k:` $v\n";
-        }
-        $texto.="\n";
-    }
-}
-
-// SCORE
-if(!empty($data['SCORE'])) {
-    $texto .= "*SCORE:*\n";
-    foreach($data['SCORE'] as $e){
-        foreach($e as $k=>$v){
-            if($v === "" || $v === null) continue;
-            $texto.="`$k:` $v\n";
-        }
-        $texto.="\n";
-    }
-}
-
-// PARENTES
-if(!empty($data['PARENTES'])) {
-    $texto .= "*PARENTES:*\n";
-    foreach($data['PARENTES'] as $e){
-        foreach($e as $k=>$v){
-            if($v === "" || $v === null) continue;
-            $texto.="`$k:` $v\n";
-        }
-        $texto.="\n";
-    }
-}
-
-$texto .= "\n⚠️ Consulta privada.\n";
-
-// envia
-sendMessage($chat_id, $texto);
+sendMessage($chat_id,$texto,json_encode($markup));
 exit;
+
+if($callback_query){
+
+    if($callback_query=="cpf_end"){
+        $t="📍 *Endereços*\n\n";
+        foreach($data["ENDERECOS"] as $e){
+            foreach($e as $k=>$v){
+                if($v!="") $t.="`$k:` $v\n";
+            }
+            $t.="\n";
+        }
+        $mk=[
+            "inline_keyboard"=>[
+                [["text"=>"🔙 Voltar","callback_data"=>"cpf_back"]],
+                [["text"=>"🗑 Apagar","callback_data"=>"cpf_del"]]
+            ]
+        ];
+        editMessageText($chat_id,$message_id,$t,json_encode($mk)); exit;
+    }
+
+    if($callback_query=="cpf_tel"){
+        $t="📞 *Telefones*\n\n";
+        foreach($data["TELEFONE"] as $e){
+            foreach($e as $k=>$v){
+                if($v!="") $t.="`$k:` $v\n";
+            }
+            $t.="\n";
+        }
+        $mk=[
+            "inline_keyboard"=>[
+                [["text"=>"🔙 Voltar","callback_data"=>"cpf_back"]],
+                [["text"=>"🗑 Apagar","callback_data"=>"cpf_del"]]
+            ]
+        ];
+        editMessageText($chat_id,$message_id,$t,json_encode($mk)); exit;
+    }
+
+    if($callback_query=="cpf_par"){
+        $t="👥 *Parentes*\n\n";
+        foreach($data["PARENTES"] as $e){
+            foreach($e as $k=>$v){
+                if($v!="") $t.="`$k:` $v\n";
+            }
+            $t.="\n";
+        }
+        $mk=[
+            "inline_keyboard"=>[
+                [["text"=>"🔙 Voltar","callback_data"=>"cpf_back"]],
+                [["text"=>"🗑 Apagar","callback_data"=>"cpf_del"]]
+            ]
+        ];
+        editMessageText($chat_id,$message_id,$t,json_encode($mk)); exit;
+    }
+
+    if($callback_query=="cpf_back"){
+        // mesmo menu inicial
+        $texto = "🪪 *Consulta de CPF*\n\n";
+        $texto.= "Nome: `{$data["DADOS"]["NOME"]}`\n";
+        $texto.= "Mãe: `{$data["DADOS"]["NOME_MAE"]}`\n";
+        $texto.= "Nascimento: `{$data["DADOS"]["DATA_NASCIMENTO"]}`\n\n";
+        $texto.= "🔎 Clique nos botões abaixo para ver mais detalhes ↓";
+
+        $markup = [
+            "inline_keyboard"=>[
+                [
+                    ["text"=>"📍 Endereços","callback_data"=>"cpf_end"],
+                    ["text"=>"📞 Telefones","callback_data"=>"cpf_tel"]
+                ],
+                [
+                    ["text"=>"👥 Parentes","callback_data"=>"cpf_par"]
+                ],
+                [
+                    ["text"=>"🗑 Apagar","callback_data"=>"cpf_del"]
+                ]
+            ]
+        ];
+
+        editMessageText($chat_id,$message_id,$texto,json_encode($markup));
+        exit;
+    }
+
+    if($callback_query=="cpf_del"){
+        deleteMessage($chat_id,$message_id);
+        exit;
+    }
+
 }
 
 // --- COMANDO /recado ---
