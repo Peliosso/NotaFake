@@ -420,7 +420,7 @@ if (strpos($message, "/cpf") === 0) {
     $texto .= "💰 *Renda estimada:* R$`{$renda}`\n";
     $texto .= "📊 *Poder aquisitivo:* `{$poder}`\n";
     $texto .= "📆 *Data atualização:* `{$dados['DT_INFORMACAO']}`\n";
-    $texto .= "\n⚠️ *Fonte:* apis-brasil.shop\n";
+    $texto .= "\n⚠️ *Grupo:* @jokermetodosfree\n";
 
     sendMessage($chat_id, $texto);
     exit;
