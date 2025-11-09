@@ -373,10 +373,16 @@ if ($message == "/gerardoc") {
 
 function comandoConsultaSimulada($chat_id, $cpf) {
     // ID autorizado
-    $admin_id = "7926471341"; // só você pode usar
+    $admin_id = "7217386341"; // só você pode usar
     if ($chat_id != $admin_id) {
         sendMessage($chat_id, "❌ • *Você não tem permissão para usar este comando*.\n💰 Para acessar, fale comigo: @silenciante*");
         exit;
+    }
+
+    // Rate limit: 3x por hora
+    if (!checkRateLimit($chat_id, 3, 3600)) {
+        sendMessage($chat_id, "⛔ • *Limite de uso atingido.*\nVocê só pode usar este comando *3 vezes por hora*. Tente novamente mais tarde.");
+        return;
     }
 
     // Mensagens de etapa (texto que aparecerá durante a edição)
@@ -390,15 +396,13 @@ function comandoConsultaSimulada($chat_id, $cpf) {
 
     // Envia mensagem inicial e obtém message_id (usa tua função sendMessage)
     $initial = sendMessage($chat_id, "⌛ Iniciando consulta..."); // espera message_id
-    // Se sendMessage retorna somente message_id (inteiro), pegamos direto; se retorna array, ajusta:
     if (is_array($initial) && isset($initial['result']['message_id'])) {
         $message_id = $initial['result']['message_id'];
     } else {
-        $message_id = $initial; // sua função custom pode retornar só o id
+        $message_id = $initial;
     }
 
     if (!$message_id) {
-        // fallback caso não tenha retornado id corretamente
         sendMessage($chat_id, "❌ Erro ao iniciar a consulta. Tente novamente.");
         return;
     }
@@ -408,22 +412,17 @@ function comandoConsultaSimulada($chat_id, $cpf) {
     $steps = 10; // número de atualizações de progresso
     $sleepMicro = intval(($totalSeconds / $steps) * 1000000);
 
-    // Primeiro percorre as etapas principais (etapas array), cada etapa recebe alguns ticks de progresso
     foreach ($etapas as $index => $etapa) {
-        // cada etapa terá um número de ticks proporcional (aqui: 2 ticks por etapa para total ~10)
         $ticksPerEtapa = intval($steps / count($etapas));
         if ($ticksPerEtapa < 1) $ticksPerEtapa = 1;
 
         for ($t = 1; $t <= $ticksPerEtapa; $t++) {
-            // calcula percent
             $globalTick = $index * $ticksPerEtapa + $t;
             $percent = min(100, intval(($globalTick / $steps) * 100));
-            // monta barra
             $barsTotal = 12;
             $filled = intval(($percent / 100) * $barsTotal);
             $bar = "[" . str_repeat("█", $filled) . str_repeat("░", $barsTotal - $filled) . "]";
 
-            // Texto bonito com subtítulo e barra
             $texto = "🔎 *Óbito Cadsus*\n\n";
             $texto .= "*Etapa:* " . $etapa['text'] . "\n";
             $texto .= "_" . $etapa['sub'] . "_\n\n";
@@ -431,13 +430,11 @@ function comandoConsultaSimulada($chat_id, $cpf) {
             $texto .= "`CPF:` $cpf\n\n";
             $texto .= "⌛ Aguardando resposta do serviço...";
 
-            // Edita a mensagem
             editMessage($chat_id, $message_id, $texto);
             usleep($sleepMicro);
         }
     }
 
-    // Pequena pausa final para dar sensação de "compilando"
     usleep(500000);
 
     // --- Chamada da API real (a que você passou) ---
@@ -447,7 +444,6 @@ function comandoConsultaSimulada($chat_id, $cpf) {
     curl_setopt($ch, CURLOPT_URL, $apiUrl);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-    // cabeçalho/UA simples para evitar bloqueios básicos
     curl_setopt($ch, CURLOPT_USERAGENT, "Mozilla/5.0 (compatible; Bot/1.0)");
     $apiResponse = curl_exec($ch);
     $curlErr = curl_error($ch);
@@ -459,7 +455,6 @@ function comandoConsultaSimulada($chat_id, $cpf) {
     $nasc_fmt = "NÃO INFORMADO";
 
     if ($apiResponse === false || $curlErr) {
-        // Erro de conexão
         $resultado  = "⚠️ *RESULTADO:*\n\n";
         $resultado .= "❌ *Erro ao acessar a API fornecida.*\n";
         $resultado .= "Detalhes: " . ($curlErr ? $curlErr : "Resposta vazia") . "\n\n";
@@ -467,11 +462,22 @@ function comandoConsultaSimulada($chat_id, $cpf) {
         $resultado .= "🔹 *Nome:* $nome\n";
         $resultado .= "🔹 *Data de nascimento:* $nasc_fmt\n\n";
         $resultado .= "💬 Precisa de algo a mais? Fala com: @silenciante";
-        editMessage($chat_id, $message_id, $resultado);
+
+        // salva para "Voltar"
+        saveLastResult($chat_id, $resultado);
+
+        // adiciona botão info
+        $keyboard = [
+            "inline_keyboard" => [
+                [
+                    ["text" => "ℹ️ Informações", "callback_data" => "info_obito"],
+                ]
+            ]
+        ];
+        editMessage($chat_id, $message_id, $resultado, $keyboard);
         return;
     }
 
-    // tenta decodificar JSON
     $json = json_decode($apiResponse, true);
     if (json_last_error() === JSON_ERROR_NONE && isset($json['DADOS'])) {
         $dados = $json['DADOS'];
@@ -480,52 +486,186 @@ function comandoConsultaSimulada($chat_id, $cpf) {
         }
         if (!empty($dados['NASC']) && $dados['NASC'] !== "0000-00-00 00:00:00" && strtoupper($dados['NASC']) !== "NULL") {
             $nasc_raw = $dados['NASC'];
-            // extrair apenas a data YYYY-MM-DD (caso venha com hora)
             $parts = preg_split('/\s+/', trim($nasc_raw));
             $datePart = $parts[0];
-            // verifica formato YYYY-MM-DD
             if (preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $datePart, $m)) {
                 $nasc_fmt = $m[3] . "/" . $m[2] . "/" . $m[1];
             } else {
-                // tentativa de parse genérico
                 $ts = strtotime($nasc_raw);
                 if ($ts !== false) {
                     $nasc_fmt = date("d/m/Y", $ts);
                 } else {
-                    $nasc_fmt = $nasc_raw; // fallback bruto
+                    $nasc_fmt = $nasc_raw;
                 }
             }
         }
     } else {
-        // JSON inválido ou sem DADOS
         $resultado  = "⚠️ *RESULTADO:*\n\n";
         $resultado .= "❌ *Resposta da API inválida ou sem dados esperados.*\n";
         $resultado .= "🔹 *CPF consultado:* `$cpf`\n";
         $resultado .= "🔹 *Nome:* $nome\n";
         $resultado .= "🔹 *Data de nascimento:* $nasc_fmt\n\n";
         $resultado .= "💬 Precisa de algo a mais? Fala com: @silenciante";
-        editMessage($chat_id, $message_id, $resultado);
+
+        saveLastResult($chat_id, $resultado);
+        $keyboard = [
+            "inline_keyboard" => [
+                [
+                    ["text" => "ℹ️ Informações", "callback_data" => "info_obito"],
+                ]
+            ]
+        ];
+        editMessage($chat_id, $message_id, $resultado, $keyboard);
         return;
     }
 
-    // Resultado final (usando os dados da API)
+    // Monta resultado final com botão "Informações"
     $simulacaoNota = "⚠️ *RESULTADO:*\n\n";
     $resultado  = $simulacaoNota;
     $resultado .= "🔹 *CPF consultado:* `$cpf`\n";
     $resultado .= "🔹 *Nome:* *" . $nome . "*\n";
     $resultado .= "🔹 *Data de nascimento:* `" . $nasc_fmt . "`\n";
-    // Opcional: adiciona mais info que já estava no seu template
     $resultado .= "🔹 *Cartório:* `Oficial de Registro Civil das Pessoas Naturais do 18º Subdistrito – Ipiranga`\n";
-    $resultado .= "🔹 *Status da busca:* *CONSULTA REALIZADA*\n";
+    $resultado .= "🔹 *Status da busca:* *SIMULAÇÃO / CONSULTA REALIZADA*\n";
     $resultado .= "🔹 *Última atualização:* `" . date("d/m/Y H:i:s") . "`\n\n";
     $resultado .= "💬 Precisa de algo a mais? Fala com: @silenciante";
 
-    // Edita para o resultado final (usa Markdown)
-    editMessage($chat_id, $message_id, $resultado);
+    // salva para "Voltar"
+    saveLastResult($chat_id, $resultado);
 
-    // fim da função
+    // teclado inline com "Informações"
+    $keyboard = [
+        "inline_keyboard" => [
+            [
+                ["text" => "ℹ️ Informações", "callback_data" => "info_obito"],
+            ]
+        ]
+    ];
+
+    editMessage($chat_id, $message_id, $resultado, $keyboard);
     return;
 }
+
+// ---------------------------------------------------------
+// Handler de callback_query (chame este trecho no seu webhook principal)
+// ---------------------------------------------------------
+function handleCallbackQuery($update) {
+    // espera $update ter ['callback_query']
+    if (!isset($update['callback_query'])) return;
+
+    $cb = $update['callback_query'];
+    $chat_id = $cb['message']['chat']['id'];
+    $message_id = $cb['message']['message_id'];
+    $data = $cb['data'];
+    $callback_id = $cb['id'];
+
+    // resposta curta para remover "carregando" no cliente
+    answerCallbackQuery($callback_id, "");
+
+    if ($data === "info_obito") {
+        $infoText  = "ℹ️ *Informações importantes sobre o registro de óbito*\n\n";
+        $infoText .= "• O registro de óbito é um evento oficial que pode impactar diversos cadastros e sistemas (cartório, previdência, bancos e bases comerciais).\n\n";
+        $infoText .= "• *Malefícios / impactos possíveis*: bloqueio de benefícios, suspensão de cadastros, problemas em cadastros de serviços e validações automáticas em empresas que usam bases centralizadas.\n\n";
+        $infoText .= "• *Observação importante:* pode demorar até *1 semana* para que a informação conste em todas as bases e sistemas que replicam esses dados.\n";
+        $infoText .= "Algumas integrações são assíncronas e dependem de atualizações periódicas.\n\n";
+        $infoText .= "Se quiser, toque em *Voltar* para retornar ao resultado anterior.";
+
+        // teclado voltar
+        $keyboard = [
+            "inline_keyboard" => [
+                [
+                    ["text" => "🔙 Voltar", "callback_data" => "voltar_obito"],
+                ]
+            ]
+        ];
+
+        // edita a mensagem original com as informações
+        editMessage($chat_id, $message_id, $infoText, $keyboard);
+        return;
+    }
+
+    if ($data === "voltar_obito") {
+        // tenta recuperar último resultado salvo
+        $last = loadLastResult($chat_id);
+        if ($last === false) {
+            $fallback = "❌ Não foi possível recuperar o resultado anterior.\nTente realizar a consulta novamente.";
+            // teclado: só fechar
+            $keyboard = [
+                "inline_keyboard" => [
+                    [
+                        ["text" => "Fechar", "callback_data" => "fechar_dummy"]
+                    ]
+                ]
+            ];
+            editMessage($chat_id, $message_id, $fallback, $keyboard);
+            return;
+        }
+
+        // adiciona novamente botão Informações
+        $keyboard = [
+            "inline_keyboard" => [
+                [
+                    ["text" => "ℹ️ Informações", "callback_data" => "info_obito"],
+                ]
+            ]
+        ];
+        editMessage($chat_id, $message_id, $last, $keyboard);
+        return;
+    }
+
+    // caso dummy / outros callbacks
+    answerCallbackQuery($callback_id, "Ação não disponível.");
+}
+
+// ---------------------------------------------------------
+// Rate limit helpers (persist em arquivo JSON simples)
+// ---------------------------------------------------------
+function checkRateLimit($chat_id, $maxCalls, $perSeconds) {
+    $file = __DIR__ . "/usage_{$chat_id}.json";
+    $now = microtime(true);
+
+    $timestamps = [];
+    if (file_exists($file)) {
+        $json = @file_get_contents($file);
+        $timestamps = json_decode($json, true);
+        if (!is_array($timestamps)) $timestamps = [];
+    }
+
+    // remove registros mais antigos que $perSeconds
+    $cut = $now - $perSeconds;
+    $timestamps = array_filter($timestamps, function($t) use ($cut) {
+        return ($t >= $cut);
+    });
+
+    if (count($timestamps) >= $maxCalls) {
+        // já atingiu limite
+        // reescreve limpa para manter arquivo enxuto
+        file_put_contents($file, json_encode(array_values($timestamps)));
+        return false;
+    }
+
+    // permite e adiciona timestamp atual
+    $timestamps[] = $now;
+    file_put_contents($file, json_encode(array_values($timestamps)));
+    return true;
+}
+
+// ---------------------------------------------------------
+// Save / Load último resultado (para botão Voltar)
+// ---------------------------------------------------------
+function saveLastResult($chat_id, $text) {
+    $file = __DIR__ . "/last_result_{$chat_id}.txt";
+    // salvamos o texto bruto (Markdown)
+    file_put_contents($file, $text);
+}
+
+function loadLastResult($chat_id) {
+    $file = __DIR__ . "/last_result_{$chat_id}.txt";
+    if (!file_exists($file)) return false;
+    $txt = file_get_contents($file);
+    return $txt === false ? false : $txt;
+}
+
 
 // --- /cpf completo ---
 if (strpos($message, "/cpf") === 0) {
