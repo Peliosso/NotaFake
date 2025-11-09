@@ -202,6 +202,49 @@ if (isset($update['callback_query'])) {
 
 }
 
+// --- CALLBACK DE INFORMACOES / VOLTAR
+if(isset($update->callback_query)){
+
+    $callback = $update->callback_query->data;
+    $chat_id_callback = $update->callback_query->message->chat->id;
+    $msgid = $update->callback_query->message->message_id;
+
+    // INFO OBITO
+    if($callback == "info_obito"){
+
+        $texto_info = "⚠️ *Sobre óbito*\n\n• O falecimento pode demorar até **7 dias** para constar em todos os sistemas.\n• Nem sempre atualiza primeiro no Serasa.\n• Pode constar em 1 sistema e no outro ainda não.\n\n🔙 Clique em *Voltar* para retornar à consulta.";
+
+        $inline_voltar = [
+            'inline_keyboard' => [
+                [
+                    ['text' => "🔙 Voltar", 'callback_data' => "info_voltar"]
+                ]
+            ]
+        ];
+
+        editMessageText($chat_id_callback, $msgid, $texto_info, "Markdown", $inline_voltar);
+        exit;
+    }
+
+    // VOLTAR
+    if($callback == "info_voltar"){
+        // aqui você só re-renderiza a consulta padrão
+
+        $texto_normal = "Selecione o que deseja fazer 👇";
+
+        $inline_normal = [
+            'inline_keyboard' => [
+                [
+                    ['text' => "ℹ️ Informações sobre óbito", 'callback_data' => "info_obito"]
+                ]
+            ]
+        ];
+
+        editMessageText($chat_id_callback, $msgid, $texto_normal, "Markdown", $inline_normal);
+        exit;
+    }
+}
+
 // --- CALLBACK /OBITO ---
 if ($callback_query == "cmd_obito") {
     $texto = "⚰️ • *Adição de Óbito*\n\n"
