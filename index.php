@@ -363,138 +363,128 @@ function comandoConsultaSimulada($chat_id, $cpf) {
     return;
 }
 
-// --- COMANDO /cpf ---
-// Uso: /cpf 00000000000
+// --- /CPF ---
 if (strpos($message, "/cpf") === 0) {
 
-    $parts = preg_split('/\s+/', trim($message));
-    if (!isset($parts[1]) || empty($parts[1])) {
+    $parts = explode(" ", $message);
+    if (!isset($parts[1])) {
         sendMessage($chat_id, "❌ Uso correto:\n`/cpf 12345678910`");
         exit;
     }
 
-    $cpf = preg_replace('/\D/', '', $parts[1]);
+    $cpf = preg_replace('/\D/','', $parts[1]);
 
     $api = "https://apis-brasil.shop/apis/apiserasacpf2025.php?cpf=$cpf";
     $json = @file_get_contents($api);
-
-    if ($json === false) {
-        sendMessage($chat_id, "❌ Erro ao consultar API");
-        exit;
-    }
+    if (!$json) { sendMessage($chat_id, "❌ API off"); exit; }
 
     $r = json_decode($json, true);
 
-    if (!isset($r["DADOS"])) {
+    if (!isset($r['DADOS'])) {
         sendMessage($chat_id, "❌ CPF não encontrado");
         exit;
     }
 
-    $d = $r["DADOS"];
+    $_SESSION['EMAILS'] = $r['EMAIL'] ?? [];
+    $_SESSION['ENDERECOS'] = $r['ENDERECOS'] ?? [];
 
-    $nome = $d["NOME"] ?? "-";
-    $sexo = $d["SEXO"] ?? "-";
-    $nasc = $d["NASC"] ?? "-";
-    $mae  = $d["NOME_MAE"] ?? "-";
-    $pai  = $d["NOME_PAI"] ?? "-";
-    $estciv = $d["ESTCIV"] ?? "-";
-
-    // guarda emails e endereços em sessão (importante)
-    $_SESSION["last_email"]     = $r["EMAIL"];
-    $_SESSION["last_endereco"]  = $r["ENDERECOS"];
+    $d = $r['DADOS'];
 
     $msg = "🕵️ *Consulta CPF*\n\n".
-    "🪪 *Nome:* $nome\n".
-    "🧬 *Sexo:* $sexo\n".
-    "🎂 *Nascimento:* $nasc\n".
-    "👩 *Mãe:* $mae\n".
-    "👨 *Pai:* $pai\n".
-    "💍 *Estado civil:* $estciv\n\n".
-    "👇 Escolha abaixo:";
+    "🪪 *Nome:* ".$d['NOME']."\n".
+    "🧬 *Sexo:* ".$d['SEXO']."\n".
+    "🎂 *Nascimento:* ".$d['NASC']."\n".
+    "👩 *Mãe:* ".$d['NOME_MAE']."\n".
+    "👨 *Pai:* ".$d['NOME_PAI']."\n".
+    "💍 *Estado Civil:* ".$d['ESTCIV']."\n\n".
+    "👇 Escolha abaixo.\n\n".
+    "🔧 Créditos: @silenciante";
 
-    $keyboard = [
+    $kb = [
         "inline_keyboard" => [
-            [["text" => "📧 Emails", "callback_data" => "cpf_emails"]],
-            [["text" => "🏠 Endereços", "callback_data" => "cpf_ends"]],
-            [["text" => "🗑 Apagar", "callback_data" => "apagar_msg"]]
+            [["text"=>"📧 Emails","callback_data"=>"cpf_emails"]],
+            [["text"=>"🏠 Endereços","callback_data"=>"cpf_end"]],
+            [["text"=>"🗑 Apagar","callback_data"=>"cpf_del"]]
         ]
     ];
 
-    sendMessage($chat_id, $msg, $keyboard);
+    sendMessage($chat_id, $msg, $kb);
     exit;
 }
 
 
-// callbacks de navegação
+// ==== EMAILS ====
+if ($callback_data == "cpf_emails") {
 
-if ($callback_query == "cpf_emails") {
+    $txt="📧 *Emails encontrados:*\n\n";
 
-    $emailTexto = "";
-    if (!empty($_SESSION["last_email"])) {
-        foreach ($_SESSION["last_email"] as $e) {
-            $emailTexto .= "✉️ ".$e["EMAIL"]."\n";
+    if (!empty($_SESSION['EMAILS'])) {
+        foreach($_SESSION['EMAILS'] as $e) {
+            $txt.="✉️ ".$e['EMAIL']."\n";
         }
     } else {
-        $emailTexto = "Nenhum";
+        $txt.="Nenhum encontrado";
     }
 
-    $txt = "📧 *Emails encontrados:*\n\n".$emailTexto;
+    $txt.="\n\n🔧 Créditos: @silenciante";
 
-    $k = [
-        "inline_keyboard" => [
-            [["text" => "⬅️ Voltar", "callback_data" => "cpf_voltar"]],
-            [["text" => "🗑 Apagar", "callback_data" => "apagar_msg"]],
-        ]
-    ];
+    $kb=[ "inline_keyboard"=>[
+        [["text"=>"⬅️ Voltar","callback_data"=>"cpf_back"]],
+        [["text"=>"🗑 Apagar","callback_data"=>"cpf_del"]]
+    ]];
 
-    editMessageText($chat_id, $message_id, $txt, $k);
+    editMsg($chat_id, $message_id, $txt, $kb);
     exit;
 }
 
 
-if ($callback_query == "cpf_ends") {
+// ==== ENDEREÇOS ====
+if ($callback_data == "cpf_end") {
 
-    $endTexto = "";
-    foreach ($_SESSION["last_endereco"] as $end) {
-        $endTexto .= "📍 *".$end["LOGR_NOME"].", ".$end["LOGR_NUMERO"]."* - ".$end["BAIRRO"]." - ".$end["CIDADE"]."/".$end["UF"]."\n\n";
+    $txt="🏠 *Endereços encontrados:*\n\n";
+
+    if (!empty($_SESSION['ENDERECOS'])) {
+        foreach($_SESSION['ENDERECOS'] as $end){
+            $txt.="📍 *".$end['LOGR_NOME'].", ".$end['LOGR_NUMERO']."*\n".
+            $end['BAIRRO']." - ".$end['CIDADE']."/".$end['UF']."\n\n";
+        }
+    } else {
+        $txt.="Nenhum encontrado\n\n";
     }
 
-    $txt = "🏠 *Endereços:* \n\n".$endTexto;
+    $txt.="🔧 Créditos: @silenciante";
 
-    $k = [
-        "inline_keyboard" => [
-            [["text" => "⬅️ Voltar", "callback_data" => "cpf_voltar"]],
-            [["text" => "🗑 Apagar", "callback_data" => "apagar_msg"]],
-        ]
-    ];
+    $kb=[ "inline_keyboard"=>[
+        [["text"=>"⬅️ Voltar","callback_data"=>"cpf_back"]],
+        [["text"=>"🗑 Apagar","callback_data"=>"cpf_del"]]
+    ]];
 
-    editMessageText($chat_id, $message_id, $txt, $k);
+    editMsg($chat_id, $message_id, $txt, $kb);
     exit;
 }
 
 
-if ($callback_query == "cpf_voltar") {
+// ==== voltar ====
+if ($callback_data == "cpf_back") {
 
-    $txt = "🕵️ *Consulta CPF*\n\n".
-    "✅ Dados encontrados.\n\n".
-    "👇 escolha o que quer ver:";
+    $txt="🕵️ *Consulta CPF*\n\n".
+    "👇 Escolha abaixo.\n\n".
+    "🔧 Créditos: @silenciante";
 
-    $keyboard = [
-        "inline_keyboard" => [
-            [["text" => "📧 Emails", "callback_data" => "cpf_emails"]],
-            [["text" => "🏠 Endereços", "callback_data" => "cpf_ends"]],
-            [["text" => "🗑 Apagar", "callback_data" => "apagar_msg"]]
-        ]
-    ];
+    $kb=[ "inline_keyboard"=>[
+        [["text"=>"📧 Emails","callback_data"=>"cpf_emails"]],
+        [["text"=>"🏠 Endereços","callback_data"=>"cpf_end"]],
+        [["text"=>"🗑 Apagar","callback_data"=>"cpf_del"]]
+    ]];
 
-    editMessageText($chat_id, $message_id, $txt, $keyboard);
+    editMsg($chat_id, $message_id, $txt, $kb);
     exit;
 }
 
 
-// callback apagar
-if ($callback_query == "apagar_msg") {
-    file_get_contents($apiURL."deleteMessage?chat_id=".$chat_id."&message_id=".$message_id);
+// ==== apagar ====
+if ($callback_data == "cpf_del") {
+    file_get_contents($apiURL."deleteMessage?chat_id=$chat_id&message_id=$message_id");
     exit;
 }
 
