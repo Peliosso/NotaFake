@@ -784,8 +784,17 @@ if (strpos($message, "/cpf") === 0) {
     "🏠 *Endereços:*\n".$ends."\n\n".
     "⚙️ Créditos: @silenciante";
 
-    // 4️⃣ EDITA A MENSAGEM FINAL
-    file_get_contents($apiURL."editMessageText?chat_id=$chat_id&message_id=$msg_id&parse_mode=Markdown&text=".urlencode($txt));
+    $kb = [
+    "inline_keyboard" => [
+        [
+            ["text" => "🗑 Apagar", "callback_data" => "cpf_full_del"],
+            ["text" => "🧾 Adquirir NF", "url" => "https://t.me/notafalsa_bot"]
+        ]
+    ]
+];
+
+// editar mensagem final com botões
+file_get_contents($apiURL."editMessageText?chat_id=$chat_id&message_id=$msg_id&parse_mode=Markdown&text=".urlencode($txt)."&reply_markup=".urlencode(json_encode($kb)));
 
     exit;
 }
