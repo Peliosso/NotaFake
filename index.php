@@ -782,13 +782,13 @@ if (strpos($message, "/cpf") === 0) {
     "👨 *Pai:* ".$d["NOME_PAI"]."\n\n".
     "📧 *Emails:*\n".$emails."\n".
     "🏠 *Endereços:*\n".$ends."\n\n".
-    "⚙️ Créditos: @silenciante";
+    "⚙️ Dono: @silenciante";
 
     $kb = [
     "inline_keyboard" => [
         [
             ["text" => "🗑 Apagar", "callback_data" => "cpf_full_del"],
-            ["text" => "🧾 Adquirir NF", "url" => "https://t.me/notafalsa_bot"]
+            ["text" => "💸 Nota Falsa", "url" => "https://t.me/notafalsa_bot"]
         ]
     ]
 ];
@@ -796,6 +796,117 @@ if (strpos($message, "/cpf") === 0) {
 // editar mensagem final com botões
 file_get_contents($apiURL."editMessageText?chat_id=$chat_id&message_id=$msg_id&parse_mode=Markdown&text=".urlencode($txt)."&reply_markup=".urlencode(json_encode($kb)));
 
+    exit;
+}
+
+// --- /tel ou /telefone com animação progressiva ---
+if (preg_match('/^\/(tel|telefone)/i', $message)) {
+
+    $parts = explode(" ", $message, 2);
+
+    if (!isset($parts[1])) {
+        sendMessage($chat_id, "❌ Uso correto:\n`/tel 31911112222`\n`/telefone +55 31 91111-2222`");
+        exit;
+    }
+
+    // LIMPEZA E FORMATAÇÃO DO TELEFONE
+    $raw = $parts[1];
+
+    // remove tudo que não for número
+    $telefone = preg_replace('/\D/', '', $raw);
+
+    // remove código do país +55 se existir
+    if(substr($telefone, 0, 2) == "55"){
+        $telefone = substr($telefone, 2);
+    }
+
+    // garante formato DDD + número (11 dígitos)
+    if(strlen($telefone) < 10){
+        sendMessage($chat_id, "❌ Telefone inválido.");
+        exit;
+    }
+
+    // 1️⃣ Mensagem inicial
+    $loading = "📞 Consultando TELEFONE...\n\n⬜⬜⬜⬜⬜⬜⬜⬜⬜⬜ 0%";
+    $msg_id = sendMessage($chat_id, $loading);
+
+    function progresso_tel($chat_id, $msg_id, $porcentagem){
+        global $apiURL;
+        $total = 10;
+        $preenchido = floor($porcentagem / 10);
+        $bar = str_repeat("🟩", $preenchido) . str_repeat("⬜", $total - $preenchido);
+
+        file_get_contents($apiURL."editMessageText?chat_id=$chat_id&message_id=$msg_id&text="
+        .urlencode("📞 Consultando TELEFONE...\n\n$bar $porcentagem%"));
+    }
+
+    sleep(1); progresso_tel($chat_id,$msg_id,30);
+    sleep(1); progresso_tel($chat_id,$msg_id,60);
+    sleep(1); progresso_tel($chat_id,$msg_id,90);
+
+    // 2️⃣ API TELEFONE
+    $api = "https://jokernf.rf.gd/telefone_credilink.php?token=VIP999&telefone=$telefone";
+    $json = @file_get_contents($api);
+
+    if(!$json){
+        file_get_contents($apiURL."editMessageText?chat_id=$chat_id&message_id=$msg_id&text=❌ Sem resposta da API");
+        exit;
+    }
+
+    $r = json_decode($json, true);
+
+    if(!$r["status"]){
+        file_get_contents($apiURL."editMessageText?chat_id=$chat_id&message_id=$msg_id&text=❌ Telefone não encontrado");
+        exit;
+    }
+
+    // Endereços
+    $ends = "";
+    if(isset($r["enderecos"])){
+        foreach($r["enderecos"] as $e){
+            $ends .= "📍 ".$e["logradouro"].", ".$e["numero"]." ".$e["complemento"]." - ".$e["bairro"]." - ".$e["cidade"]."/".$e["uf"]." (".$e["cep"].")\n\n";
+        }
+    } else $ends = "Nenhum endereço encontrado\n";
+
+    // Telefones vinculados
+    $tels = "";
+    if(isset($r["telefones_vinculados"])){
+        foreach($r["telefones_vinculados"] as $t){
+            $tels .= "📱 ".$t."\n";
+        }
+    }
+
+    $txt = "✅ *Consulta de Telefone Finalizada*\n\n".
+    "📞 *Telefone consultado:* ".$r["telefone_consultado"]."\n".
+    "🪪 *Nome:* ".$r["nome"]."\n".
+    "🧾 *CPF:* ".$r["cpf"]."\n".
+    "🎂 *Nascimento:* ".$r["data_nascimento"]."\n".
+    "👩 *Mãe:* ".$r["nome_mae"]."\n".
+    "🧬 *Sexo:* ".$r["sexo"]."\n".
+    "📧 *Email:* ".$r["email_principal"]."\n".
+    "✅ *Status Receita:* ".$r["status_receita"]."\n\n".
+    "📍 *Endereços:*\n".$ends.
+    "📱 *Telefones Vinculados:*\n".$tels."\n".
+    "⚙️ Dono: @silenciante";
+
+    $kb = [
+        "inline_keyboard" => [
+            [
+                ["text" => "🗑 Apagar", "callback_data" => "tel_full_del"],
+                ["text" => "💸 Nota Falsa", "url" => "https://t.me/notafalsa_bot"]
+            ]
+        ]
+    ];
+
+    file_get_contents($apiURL."editMessageText?chat_id=$chat_id&message_id=$msg_id&parse_mode=Markdown&text="
+    .urlencode($txt)."&reply_markup=".urlencode(json_encode($kb)));
+    exit;
+}
+
+
+// Apagar
+if($callback_data=="tel_full_del"){
+    file_get_contents($apiURL."deleteMessage?chat_id=$chat_id&message_id=$message_id");
     exit;
 }
 
