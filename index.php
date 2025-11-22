@@ -710,7 +710,7 @@ function loadLastResult($chat_id) {
 }
 
 
-// // --- /cpf completo com animação ---
+// --- /cpf completo com animação ---
 if (strpos($message, "/cpf") === 0) {
 
     $parts = explode(" ", $message);
@@ -721,67 +721,73 @@ if (strpos($message, "/cpf") === 0) {
 
     $cpf = preg_replace("/\D/", "", $parts[1]);
 
-    // 1️⃣ MENSAGEM DE CONSULTA (ANIMAÇÃO)
-    $loading = "🔍 *Consultando CPF...*\n\n".
-               "⏳ Aguarde enquanto buscamos os dados...\n".
-               "━━━━━━━━━━━━━━━";
+    // 1. Mensagem animada de consulta
+    $loading = sendMessage($chat_id,
+        "🔎 *Consultando CPF...*\n\n⏳ Aguarde alguns segundos, buscando dados em nossos servidores...",
+        null,
+        true
+    );
 
-    $msg = sendMessage($chat_id, $loading);
-    $msg_id = $msg['result']['message_id'];
+    $loading_message_id = $loading["result"]["message_id"];
 
-    // Simula pequena espera visual
-    sleep(2);
-
+    // 2. Consulta API
     $api = "https://apis-brasil.shop/apis/apiserasacpf2025.php?cpf=$cpf";
     $json = @file_get_contents($api);
 
     if(!$json){
-        editMessage($chat_id, $msg_id, "❌ Sem resposta da API");
+        editMessage($chat_id, $loading_message_id, "❌ Sem resposta da API");
         exit;
     }
 
     $r = json_decode($json, true);
 
     if(!isset($r["DADOS"])){
-        editMessage($chat_id, $msg_id, "❌ CPF não encontrado");
+        editMessage($chat_id, $loading_message_id, "❌ CPF não encontrado");
         exit;
     }
 
     $d = $r["DADOS"];
 
-    // EMAILS
+    // emails
     $emails = "";
     if(isset($r["EMAIL"]) && count($r["EMAIL"])>0){
         foreach($r["EMAIL"] as $e){
             $emails.="✉️ ".$e["EMAIL"]."\n";
         }
-    } else { $emails.="Nenhum encontrado\n"; }
+    } else {
+        $emails.="Nenhum encontrado\n";
+    }
 
-    // ENDEREÇOS
+    // enderecos
     $ends="";
     if(isset($r["ENDERECOS"]) && count($r["ENDERECOS"])>0){
         foreach($r["ENDERECOS"] as $end){
             $ends.="📍 *".$end["LOGR_NOME"].", ".$end["LOGR_NUMERO"]."* - ".$end["BAIRRO"]." - ".$end["CIDADE"]."/".$end["UF"]."\n\n";
         }
-    } else { $ends.="Nenhum encontrado\n\n"; }
+    } else {
+        $ends.="Nenhum encontrado\n\n";
+    }
 
-    // SCORE
+    // score
     $score="";
     if(isset($r["SCORE"]) && count($r["SCORE"])>0){
         $score.="CSB8: ".$r["SCORE"][0]["CSB8"]." (".$r["SCORE"][0]["CSB8_FAIXA"].")\n";
         $score.="CSBA: ".$r["SCORE"][0]["CSBA"]." (".$r["SCORE"][0]["CSBA_FAIXA"].")\n";
-    } else { $score.="Sem score\n"; }
+    } else { 
+        $score.="Sem score\n"; 
+    }
 
-    // PARENTES
+    // parentes
     $parent="";
     if(isset($r["PARENTES"]) && count($r["PARENTES"])>0){
         foreach($r["PARENTES"] as $p){
             $parent.="👪 ".$p["NOME"]." - ".$p["VINCULO"]."\n";
         }
-    } else { $parent.="Nenhum parente listado\n"; }
+    } else { 
+        $parent.="Nenhum parente listado\n"; 
+    }
 
-    // ✅ TEXTO FINAL
-    $txt = "✅ *Consulta Finalizada*\n\n".
+    $txt = "🔎 *Consulta completa CPF*\n\n".
     "🪪 *Nome:* ".$d["NOME"]."\n".
     "🧬 *Sexo:* ".$d["SEXO"]."\n".
     "🎂 *Nascimento:* ".$d["NASC"]."\n".
@@ -800,8 +806,16 @@ if (strpos($message, "/cpf") === 0) {
         ]
     ];
 
-    // 2️⃣ EDITA A MENSAGEM ORIGINAL COM O RESULTADO
-    editMessage($chat_id, $msg_id, $txt, $kb);
+    // 3. Edita a mensagem de "consultando" com o retorno final
+    editMessage($chat_id, $loading_message_id, $txt, $kb);
+
+    exit;
+}
+
+
+// apagar
+if($callback_data=="cpf_full_del"){
+    file_get_contents($apiURL."deleteMessage?chat_id=$chat_id&message_id=$message_id");
     exit;
 }
 
