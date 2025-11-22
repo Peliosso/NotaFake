@@ -245,23 +245,6 @@ if(isset($update->callback_query)){
     }
 }
 
-function animacaoConsultando($chat_id, $message_id, $cpf, $tempo = 6) {
-    $frames = [
-        "🔍 *Consultando CPF...*\n\nCPF: `$cpf`\n⏳ Aguarde por favor\n\n[● ○ ○ ○]",
-        "🔍 *Consultando CPF...*\n\nCPF: `$cpf`\n⏳ Aguarde por favor\n\n[○ ● ○ ○]",
-        "🔍 *Consultando CPF...*\n\nCPF: `$cpf`\n⏳ Aguarde por favor\n\n[○ ○ ● ○]",
-        "🔍 *Consultando CPF...*\n\nCPF: `$cpf`\n⏳ Aguarde por favor\n\n[○ ○ ○ ●]"
-    ];
-
-    $loops = $tempo * 2; // duração total da animação
-
-    for ($i = 0; $i < $loops; $i++) {
-        $frame = $frames[$i % count($frames)];
-        editMessage($chat_id, $message_id, $frame);
-        usleep(500000); // 0.5s
-    }
-}
-
 // --- CALLBACK /OBITO ---
 if ($callback_query == "cmd_obito") {
     $texto = "⚰️ • *Adição de Óbito*\n\n"
@@ -455,10 +438,7 @@ function comandoConsultaSimulada($chat_id, $cpf) {
     ];
 
     // Envia mensagem inicial e obtém message_id (usa tua função sendMessage)
-    $message_id = $initial;
-
-// animação visual de consulta
-animacaoConsultando($chat_id, $message_id, $cpf, 5);
+    $initial = sendMessage($chat_id, "⌛ Iniciando consulta..."); // espera message_id
     if (is_array($initial) && isset($initial['result']['message_id'])) {
         $message_id = $initial['result']['message_id'];
     } else {
