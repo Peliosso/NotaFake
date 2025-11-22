@@ -84,23 +84,6 @@ function calcularFrete($cep_destino, $peso = 1) {
     return rand(30, 50);
 }
 
-function editMessage($chat_id, $message_id, $text, $keyboard = null){
-    global $apiURL;
-
-    $data = [
-        "chat_id" => $chat_id,
-        "message_id" => $message_id,
-        "text" => $text,
-        "parse_mode" => "Markdown"
-    ];
-
-    if($keyboard){
-        $data["reply_markup"] = json_encode($keyboard);
-    }
-
-    file_get_contents($apiURL."editMessageText?".http_build_query($data));
-}
-
 // --- MENU PRINCIPAL /start ---
 if ($message == "/start") {
     $keyboard = [
