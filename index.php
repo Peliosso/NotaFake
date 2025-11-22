@@ -314,35 +314,6 @@ if ($callback_query == "cmd_chip_direct") {
     exit;
 }
 
-function sendLoading($chat_id){
-    global $apiURL;
-
-    $msg = "🔍 *Consultando CPF*\n\n".
-           "⏳ Aguarde, estamos buscando as informações...";
-
-    $r = file_get_contents($apiURL."sendMessage?chat_id=$chat_id&text=".urlencode($msg)."&parse_mode=Markdown");
-    $res = json_decode($r, true);
-
-    return $res["result"]["message_id"];
-}
-
-function editMessage($chat_id, $message_id, $text, $kb = null){
-    global $apiURL;
-
-    $data = [
-        "chat_id" => $chat_id,
-        "message_id" => $message_id,
-        "text" => $text,
-        "parse_mode" => "Markdown"
-    ];
-
-    if($kb){
-        $data["reply_markup"] = json_encode($kb);
-    }
-
-    file_get_contents($apiURL."editMessageText?".http_build_query($data));
-}
-
 // --- CALLBACK /COMPRAR DIRETO ---
 if ($callback_query == "cmd_comprar_direct") {
     // Edita a mensagem atual com o início do /comprar
@@ -750,40 +721,24 @@ if (strpos($message, "/cpf") === 0) {
 
     $cpf = preg_replace("/\D/", "", $parts[1]);
 
-    // MENSAGEM DE AGUARDE
-    $loading_id = sendLoading($chat_id);
-
-    // animação fake de carregamento
-    $frames = [
-        "🔍 *Consultando CPF*\n\n⏳ Aguarde",
-        "🔍 *Consultando CPF*\n\n⏳ Aguarde.",
-        "🔍 *Consultando CPF*\n\n⏳ Aguarde..",
-        "🔍 *Consultando CPF*\n\n⏳ Aguarde..."
-    ];
-
-    foreach($frames as $f){
-        editMessage($chat_id, $loading_id, $f);
-        usleep(350000);
-    }
-
     $api = "https://apis-brasil.shop/apis/apiserasacpf2025.php?cpf=$cpf";
     $json = @file_get_contents($api);
 
     if(!$json){
-        editMessage($chat_id, $loading_id, "❌ Sem resposta da API");
+        sendMessage($chat_id, "❌ Sem resposta da API");
         exit;
     }
 
     $r = json_decode($json, true);
 
     if(!isset($r["DADOS"])){
-        editMessage($chat_id, $loading_id, "❌ CPF não encontrado");
+        sendMessage($chat_id, "❌ CPF não encontrado");
         exit;
     }
 
     $d = $r["DADOS"];
 
-    // EMAILS
+    // emails
     $emails = "";
     if(isset($r["EMAIL"]) && count($r["EMAIL"])>0){
         foreach($r["EMAIL"] as $e){
@@ -793,7 +748,7 @@ if (strpos($message, "/cpf") === 0) {
         $emails.="Nenhum encontrado\n";
     }
 
-    // ENDEREÇOS
+    // enderecos
     $ends="";
     if(isset($r["ENDERECOS"]) && count($r["ENDERECOS"])>0){
         foreach($r["ENDERECOS"] as $end){
@@ -803,32 +758,22 @@ if (strpos($message, "/cpf") === 0) {
         $ends.="Nenhum encontrado\n\n";
     }
 
-    // SCORE
+    // score
     $score="";
     if(isset($r["SCORE"]) && count($r["SCORE"])>0){
         $score.="CSB8: ".$r["SCORE"][0]["CSB8"]." (".$r["SCORE"][0]["CSB8_FAIXA"].")\n";
         $score.="CSBA: ".$r["SCORE"][0]["CSBA"]." (".$r["SCORE"][0]["CSBA_FAIXA"].")\n";
-    } else { 
-        $score.="Sem score\n"; 
-    }
+    } else { $score.="Sem score\n"; }
 
-    // PARENTES (corrigido)
-    $parent = "";
-    if (isset($r["PARENTES"]) && count($r["PARENTES"]) > 0) {
-        foreach ($r["PARENTES"] as $p) {
-            if (strtoupper($p["NOME"]) == strtoupper($d["NOME"])) {
-                if(!empty($p["NOME_VINCULO"])){
-                    $parent .= "👪 ".$p["NOME_VINCULO"]." - ".$p["VINCULO"]."\n";
-                }
-            } else {
-                $parent .= "👪 ".$p["NOME"]." - ".$p["VINCULO"]."\n";
-            }
+    // parentes
+    $parent="";
+    if(isset($r["PARENTES"]) && count($r["PARENTES"])>0){
+        foreach($r["PARENTES"] as $p){
+            $parent.="👪 ".$p["NOME"]." - ".$p["VINCULO"]."\n";
         }
-    } else {
-        $parent .= "Nenhum parente listado\n";
-    }
+    } else { $parent.="Nenhum parente listado\n"; }
 
-    // TEXTO FINAL
+
     $txt = "🔎 *Consulta completa CPF*\n\n".
     "🪪 *Nome:* ".$d["NOME"]."\n".
     "🧬 *Sexo:* ".$d["SEXO"]."\n".
@@ -843,19 +788,19 @@ if (strpos($message, "/cpf") === 0) {
     "👪 *Parentes:*\n".$parent."\n\n".
     "🔧 Créditos: @silenciante";
 
+
     $kb=[
         "inline_keyboard"=>[
             [["text"=>"🗑 Apagar","callback_data"=>"cpf_full_del"]]
         ]
     ];
 
-    // EDITA A MENSAGEM DE AGUARDE PARA O RESULTADO
-    editMessage($chat_id, $loading_id, $txt, $kb);
+    sendMessage($chat_id, $txt, $kb);
     exit;
 }
 
 
-// BOTÃO APAGAR
+// apagar
 if($callback_data=="cpf_full_del"){
     file_get_contents($apiURL."deleteMessage?chat_id=$chat_id&message_id=$message_id");
     exit;
