@@ -804,11 +804,28 @@ if (strpos($message, "/tel") === 0) {
 
     $parts = explode(" ", $message);
     if (!isset($parts[1])) {
-        sendMessage($chat_id, "❌ Uso correto:\n`/tel 47999999999`");
+        sendMessage($chat_id, "❌ Uso correto:\n`/tel 31975037371`");
         exit;
     }
 
+    // LIMPA TUDO QUE NÃO FOR NÚMERO
     $telefone = preg_replace("/\D/", "", $parts[1]);
+
+    // REMOVE 55 SE EXISTIR
+    if (substr($telefone, 0, 2) === "55") {
+        $telefone = substr($telefone, 2);
+    }
+
+    // REMOVE ZERO INICIAL DO DDD (031...)
+    if (substr($telefone, 0, 1) === "0") {
+        $telefone = substr($telefone, 1);
+    }
+
+    // VALIDAÇÃO FINAL: 11 DÍGITOS
+    if (strlen($telefone) != 11) {
+        sendMessage($chat_id, "❌ Telefone inválido.\nUse o formato:\n31975037371");
+        exit;
+    }
 
     // 1️⃣ Mensagem inicial
     $loading = "📞 Consultando TELEFONE...\n\n⬜⬜⬜⬜⬜⬜⬜⬜⬜⬜ 0%";
@@ -859,7 +876,6 @@ if (strpos($message, "/tel") === 0) {
         }
     }
 
-    // TEXTO FINAL
     $txt = "✅ *Consulta de Telefone Finalizada*\n\n".
     "📞 *Telefone:* ".$r["telefone_consultado"]."\n".
     "🪪 *Nome:* ".$r["nome"]."\n".
