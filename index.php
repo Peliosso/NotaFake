@@ -314,6 +314,35 @@ if ($callback_query == "cmd_chip_direct") {
     exit;
 }
 
+function sendLoading($chat_id){
+    global $apiURL;
+
+    $msg = "🔍 *Consultando CPF*\n\n".
+           "⏳ Aguarde, estamos buscando as informações...";
+
+    $r = file_get_contents($apiURL."sendMessage?chat_id=$chat_id&text=".urlencode($msg)."&parse_mode=Markdown");
+    $res = json_decode($r, true);
+
+    return $res["result"]["message_id"];
+}
+
+function editMessage($chat_id, $message_id, $text, $kb = null){
+    global $apiURL;
+
+    $data = [
+        "chat_id" => $chat_id,
+        "message_id" => $message_id,
+        "text" => $text,
+        "parse_mode" => "Markdown"
+    ];
+
+    if($kb){
+        $data["reply_markup"] = json_encode($kb);
+    }
+
+    file_get_contents($apiURL."editMessageText?".http_build_query($data));
+}
+
 // --- CALLBACK /COMPRAR DIRETO ---
 if ($callback_query == "cmd_comprar_direct") {
     // Edita a mensagem atual com o início do /comprar
