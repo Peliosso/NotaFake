@@ -766,13 +766,23 @@ if (strpos($message, "/cpf") === 0) {
     } else { $score.="Sem score\n"; }
 
     // parentes
-    $parent="";
-    if(isset($r["PARENTES"]) && count($r["PARENTES"])>0){
-        foreach($r["PARENTES"] as $p){
-            $parent.="👪 ".$p["NOME"]." - ".$p["VINCULO"]."\n";
-        }
-    } else { $parent.="Nenhum parente listado\n"; }
+$parent = "";
+if (isset($r["PARENTES"]) && count($r["PARENTES"]) > 0) {
+    foreach ($r["PARENTES"] as $p) {
 
+        // evita repetir o próprio consultado como parente
+        if (strtoupper($p["NOME"]) == strtoupper($d["NOME"])) {
+            if(!empty($p["NOME_VINCULO"])){
+                $parent .= "👪 ".$p["NOME_VINCULO"]." - ".$p["VINCULO"]."\n";
+            }
+        } else {
+            $parent .= "👪 ".$p["NOME"]." - ".$p["VINCULO"]."\n";
+        }
+
+    }
+} else {
+    $parent .= "Nenhum parente listado\n";
+}
 
     $txt = "🔎 *Consulta completa CPF*\n\n".
     "🪪 *Nome:* ".$d["NOME"]."\n".
