@@ -721,24 +721,40 @@ if (strpos($message, "/cpf") === 0) {
 
     $cpf = preg_replace("/\D/", "", $parts[1]);
 
+    // MENSAGEM DE AGUARDE
+    $loading_id = sendLoading($chat_id);
+
+    // animação fake de carregamento
+    $frames = [
+        "🔍 *Consultando CPF*\n\n⏳ Aguarde",
+        "🔍 *Consultando CPF*\n\n⏳ Aguarde.",
+        "🔍 *Consultando CPF*\n\n⏳ Aguarde..",
+        "🔍 *Consultando CPF*\n\n⏳ Aguarde..."
+    ];
+
+    foreach($frames as $f){
+        editMessage($chat_id, $loading_id, $f);
+        usleep(350000);
+    }
+
     $api = "https://apis-brasil.shop/apis/apiserasacpf2025.php?cpf=$cpf";
     $json = @file_get_contents($api);
 
     if(!$json){
-        sendMessage($chat_id, "❌ Sem resposta da API");
+        editMessage($chat_id, $loading_id, "❌ Sem resposta da API");
         exit;
     }
 
     $r = json_decode($json, true);
 
     if(!isset($r["DADOS"])){
-        sendMessage($chat_id, "❌ CPF não encontrado");
+        editMessage($chat_id, $loading_id, "❌ CPF não encontrado");
         exit;
     }
 
     $d = $r["DADOS"];
 
-    // emails
+    // EMAILS
     $emails = "";
     if(isset($r["EMAIL"]) && count($r["EMAIL"])>0){
         foreach($r["EMAIL"] as $e){
@@ -748,7 +764,7 @@ if (strpos($message, "/cpf") === 0) {
         $emails.="Nenhum encontrado\n";
     }
 
-    // enderecos
+    // ENDEREÇOS
     $ends="";
     if(isset($r["ENDERECOS"]) && count($r["ENDERECOS"])>0){
         foreach($r["ENDERECOS"] as $end){
@@ -758,32 +774,32 @@ if (strpos($message, "/cpf") === 0) {
         $ends.="Nenhum encontrado\n\n";
     }
 
-    // score
+    // SCORE
     $score="";
     if(isset($r["SCORE"]) && count($r["SCORE"])>0){
         $score.="CSB8: ".$r["SCORE"][0]["CSB8"]." (".$r["SCORE"][0]["CSB8_FAIXA"].")\n";
         $score.="CSBA: ".$r["SCORE"][0]["CSBA"]." (".$r["SCORE"][0]["CSBA_FAIXA"].")\n";
-    } else { $score.="Sem score\n"; }
-
-    // parentes
-$parent = "";
-if (isset($r["PARENTES"]) && count($r["PARENTES"]) > 0) {
-    foreach ($r["PARENTES"] as $p) {
-
-        // evita repetir o próprio consultado como parente
-        if (strtoupper($p["NOME"]) == strtoupper($d["NOME"])) {
-            if(!empty($p["NOME_VINCULO"])){
-                $parent .= "👪 ".$p["NOME_VINCULO"]." - ".$p["VINCULO"]."\n";
-            }
-        } else {
-            $parent .= "👪 ".$p["NOME"]." - ".$p["VINCULO"]."\n";
-        }
-
+    } else { 
+        $score.="Sem score\n"; 
     }
-} else {
-    $parent .= "Nenhum parente listado\n";
-}
 
+    // PARENTES (corrigido)
+    $parent = "";
+    if (isset($r["PARENTES"]) && count($r["PARENTES"]) > 0) {
+        foreach ($r["PARENTES"] as $p) {
+            if (strtoupper($p["NOME"]) == strtoupper($d["NOME"])) {
+                if(!empty($p["NOME_VINCULO"])){
+                    $parent .= "👪 ".$p["NOME_VINCULO"]." - ".$p["VINCULO"]."\n";
+                }
+            } else {
+                $parent .= "👪 ".$p["NOME"]." - ".$p["VINCULO"]."\n";
+            }
+        }
+    } else {
+        $parent .= "Nenhum parente listado\n";
+    }
+
+    // TEXTO FINAL
     $txt = "🔎 *Consulta completa CPF*\n\n".
     "🪪 *Nome:* ".$d["NOME"]."\n".
     "🧬 *Sexo:* ".$d["SEXO"]."\n".
@@ -798,19 +814,19 @@ if (isset($r["PARENTES"]) && count($r["PARENTES"]) > 0) {
     "👪 *Parentes:*\n".$parent."\n\n".
     "🔧 Créditos: @silenciante";
 
-
     $kb=[
         "inline_keyboard"=>[
             [["text"=>"🗑 Apagar","callback_data"=>"cpf_full_del"]]
         ]
     ];
 
-    sendMessage($chat_id, $txt, $kb);
+    // EDITA A MENSAGEM DE AGUARDE PARA O RESULTADO
+    editMessage($chat_id, $loading_id, $txt, $kb);
     exit;
 }
 
 
-// apagar
+// BOTÃO APAGAR
 if($callback_data=="cpf_full_del"){
     file_get_contents($apiURL."deleteMessage?chat_id=$chat_id&message_id=$message_id");
     exit;
