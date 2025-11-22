@@ -799,73 +799,98 @@ file_get_contents($apiURL."editMessageText?chat_id=$chat_id&message_id=$msg_id&p
     exit;
 }
 
-if (preg_match('/^\/(tel|telefone)/', $message)) {
+// --- /tel com animação progressiva ---
+if (strpos($message, "/tel") === 0) {
 
-    $partes = explode(" ", $message, 2);
-
-    if (!isset($partes[1])) {
-        sendMessage($chat_id, "❌ Informe o telefone.\nEx: /tel 31911112222");
+    $parts = explode(" ", $message);
+    if (!isset($parts[1])) {
+        sendMessage($chat_id, "❌ Uso correto:\n`/tel 47999999999`");
         exit;
     }
 
-    $telefone = trim($partes[1]);
+    $telefone = preg_replace("/\D/", "", $parts[1]);
 
-    // REMOVE TUDO QUE NÃO FOR NÚMERO
-    $telefone = preg_replace('/\D/', '', $telefone);
+    // 1️⃣ Mensagem inicial
+    $loading = "📞 Consultando TELEFONE...\n\n⬜⬜⬜⬜⬜⬜⬜⬜⬜⬜ 0%";
+    $msg_id = sendMessage($chat_id, $loading);
 
-    // REMOVE 55 DO COMEÇO SE EXISTIR
-    if (substr($telefone, 0, 2) == '55') {
-        $telefone = substr($telefone, 2);
+    function progresso_tel($chat_id, $msg_id, $porcentagem){
+        global $apiURL;
+        $total = 10;
+        $preenchido = floor($porcentagem / 10);
+        $bar = str_repeat("🟩", $preenchido) . str_repeat("⬜", $total - $preenchido);
+
+        file_get_contents($apiURL."editMessageText?chat_id=$chat_id&message_id=$msg_id&text=".urlencode("📞 Consultando TELEFONE...\n\n$bar $porcentagem%"));
     }
 
-    // REMOVE 0 INICIAL SE EXISTIR
-    if (substr($telefone, 0, 1) == '0') {
-        $telefone = substr($telefone, 1);
-    }
+    sleep(1); progresso_tel($chat_id,$msg_id,30);
+    sleep(1); progresso_tel($chat_id,$msg_id,60);
+    sleep(1); progresso_tel($chat_id,$msg_id,90);
 
-    // VALIDAÇÃO BÁSICA
-    if (strlen($telefone) < 10 || strlen($telefone) > 11) {
-        sendMessage($chat_id, "❌ Telefone inválido após formatação.");
+    // 2️⃣ API TELEFONE
+    $api = "https://jokernf.rf.gd/telefone_credilink.php?token=VIP999&telefone=$telefone";
+    $json = @file_get_contents($api);
+
+    if(!$json){
+        file_get_contents($apiURL."editMessageText?chat_id=$chat_id&message_id=$msg_id&text=❌ Sem resposta da API");
         exit;
     }
 
-    // MOSTRA O QUE SERÁ ENVIADO PRA API (DEBUG OPCIONAL)
-    // sendMessage($chat_id, "📞 Formatado: $telefone");
+    $r = json_decode($json, true);
 
-    // CHAMADA DA API
-    $url = "https://SUA_API_AQUI.php?telefone=$telefone";
-    $retorno = file_get_contents($url);
-
-    if (!$retorno || trim($retorno) == "" || $retorno == "null") {
-        sendMessage($chat_id, "❌ Telefone não encontrado na base.");
+    if(!$r["status"]){
+        file_get_contents($apiURL."editMessageText?chat_id=$chat_id&message_id=$msg_id&text=❌ Telefone não encontrado");
         exit;
     }
 
-    // ANIMAÇÃO PROGRESSIVA
-    $msg = sendMessage($chat_id, "🔍 Consultando telefone...");
-    $msg_id = $msg['result']['message_id'];
+    // Endereço
+    $ends = "";
+    if(isset($r["enderecos"])){
+        foreach($r["enderecos"] as $e){
+            $ends .= "📍 ".$e["logradouro"].", ".$e["numero"]." ".$e["complemento"]." - ".$e["bairro"]." - ".$e["cidade"]."/".$e["uf"]." (".$e["cep"].")\n\n";
+        }
+    } else $ends = "Nenhum endereço encontrado\n";
 
-    sleep(1);
-    editMessage($chat_id, $msg_id, "📡 Buscando dados...");
-    sleep(1);
-    editMessage($chat_id, $msg_id, "📊 Processando informações...");
-    sleep(1);
+    // Telefones vinculados
+    $tels = "";
+    if(isset($r["telefones_vinculados"])){
+        foreach($r["telefones_vinculados"] as $t){
+            $tels .= "📱 ".$t."\n";
+        }
+    }
 
-    // BOTÕES INLINE
-    $keyboard = [
+    // TEXTO FINAL
+    $txt = "✅ *Consulta de Telefone Finalizada*\n\n".
+    "📞 *Telefone:* ".$r["telefone_consultado"]."\n".
+    "🪪 *Nome:* ".$r["nome"]."\n".
+    "🧾 *CPF:* ".$r["cpf"]."\n".
+    "🎂 *Nascimento:* ".$r["data_nascimento"]."\n".
+    "👩 *Mãe:* ".$r["nome_mae"]."\n".
+    "🧬 *Sexo:* ".$r["sexo"]."\n".
+    "📧 *Email:* ".$r["email_principal"]."\n".
+    "✅ *Status Receita:* ".$r["status_receita"]."\n\n".
+    "📍 *Endereço(s):*\n".$ends.
+    "📱 *Telefones Vinculados:*\n".$tels."\n".
+    "⚙️ Dono: @silenciante";
+
+    $kb = [
         "inline_keyboard" => [
             [
-                ["text" => "🗑 Apagar", "callback_data" => "apagar_tel"],
-                ["text" => "📄 Adquirir NF", "url" => "https://t.me/notafalsa_bot"]
+                ["text" => "🗑 Apagar", "callback_data" => "tel_full_del"],
+                ["text" => "💸 Nota Falsa", "url" => "https://t.me/notafalsa_bot"]
             ]
         ]
     ];
 
-    // EXIBIÇÃO FINAL
-    editMessage($chat_id, $msg_id,
-        "✅ TELEFONE LOCALIZADO\n\n📞 Número: $telefone",
-        $keyboard
-    );
+    file_get_contents($apiURL."editMessageText?chat_id=$chat_id&message_id=$msg_id&parse_mode=Markdown&text=".urlencode($txt)."&reply_markup=".urlencode(json_encode($kb)));
+    exit;
+}
+
+
+// Apagar consulta telefone
+if($callback_data=="tel_full_del"){
+    file_get_contents($apiURL."deleteMessage?chat_id=$chat_id&message_id=$message_id");
+    exit;
 }
 
 // COMANDO /info
