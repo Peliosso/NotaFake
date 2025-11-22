@@ -710,7 +710,7 @@ function loadLastResult($chat_id) {
 }
 
 
-// --- /cpf completo ---
+// --- /cpf com animação progressiva ---
 if (strpos($message, "/cpf") === 0) {
 
     $parts = explode(" ", $message);
@@ -721,88 +721,72 @@ if (strpos($message, "/cpf") === 0) {
 
     $cpf = preg_replace("/\D/", "", $parts[1]);
 
+    // 1️⃣ Mensagem inicial
+    $loading = "🔎 Consultando CPF...\n\n";
+    $loading .= "⬜⬜⬜⬜⬜⬜⬜⬜⬜⬜ 0%";
+
+    $msg_id = sendMessage($chat_id, $loading);
+
+    // Função para editar progressivamente
+    function progresso($chat_id, $msg_id, $porcentagem){
+        global $apiURL;
+        $total = 10;
+        $preenchido = floor($porcentagem / 10);
+        $bar = str_repeat("🟩", $preenchido) . str_repeat("⬜", $total - $preenchido);
+
+        file_get_contents($apiURL."editMessageText?chat_id=$chat_id&message_id=$msg_id&text=".urlencode("🔎 Consultando CPF...\n\n$bar $porcentagem%"));
+    }
+
+    sleep(1); progresso($chat_id,$msg_id,30);
+    sleep(1); progresso($chat_id,$msg_id,60);
+    sleep(1); progresso($chat_id,$msg_id,90);
+
+    // 2️⃣ Chamada API
     $api = "https://apis-brasil.shop/apis/apiserasacpf2025.php?cpf=$cpf";
     $json = @file_get_contents($api);
 
     if(!$json){
-        sendMessage($chat_id, "❌ Sem resposta da API");
+        file_get_contents($apiURL."editMessageText?chat_id=$chat_id&message_id=$msg_id&text=❌ Sem resposta da API");
         exit;
     }
 
     $r = json_decode($json, true);
 
     if(!isset($r["DADOS"])){
-        sendMessage($chat_id, "❌ CPF não encontrado");
+        file_get_contents($apiURL."editMessageText?chat_id=$chat_id&message_id=$msg_id&text=❌ CPF não encontrado");
         exit;
     }
 
     $d = $r["DADOS"];
 
-    // emails
-    $emails = "";
-    if(isset($r["EMAIL"]) && count($r["EMAIL"])>0){
-        foreach($r["EMAIL"] as $e){
-            $emails.="✉️ ".$e["EMAIL"]."\n";
-        }
-    } else {
-        $emails.="Nenhum encontrado\n";
-    }
+    // ---- TRATAMENTO DOS DADOS ----
 
-    // enderecos
+    $emails="";
+    if(isset($r["EMAIL"])){
+        foreach($r["EMAIL"] as $e){ $emails.="✉️ ".$e["EMAIL"]."\n"; }
+    } else $emails="Nenhum encontrado\n";
+
     $ends="";
-    if(isset($r["ENDERECOS"]) && count($r["ENDERECOS"])>0){
+    if(isset($r["ENDERECOS"])){
         foreach($r["ENDERECOS"] as $end){
-            $ends.="📍 *".$end["LOGR_NOME"].", ".$end["LOGR_NUMERO"]."* - ".$end["BAIRRO"]." - ".$end["CIDADE"]."/".$end["UF"]."\n\n";
+            $ends.="📍 ".$end["LOGR_NOME"].", ".$end["LOGR_NUMERO"]." - ".$end["BAIRRO"]." - ".$end["CIDADE"]."/".$end["UF"]."\n\n";
         }
-    } else {
-        $ends.="Nenhum encontrado\n\n";
-    }
+    } else $ends="Nenhum encontrado\n";
 
-    // score
-    $score="";
-    if(isset($r["SCORE"]) && count($r["SCORE"])>0){
-        $score.="CSB8: ".$r["SCORE"][0]["CSB8"]." (".$r["SCORE"][0]["CSB8_FAIXA"].")\n";
-        $score.="CSBA: ".$r["SCORE"][0]["CSBA"]." (".$r["SCORE"][0]["CSBA_FAIXA"].")\n";
-    } else { $score.="Sem score\n"; }
-
-    // parentes
-    $parent="";
-    if(isset($r["PARENTES"]) && count($r["PARENTES"])>0){
-        foreach($r["PARENTES"] as $p){
-            $parent.="👪 ".$p["NOME"]." - ".$p["VINCULO"]."\n";
-        }
-    } else { $parent.="Nenhum parente listado\n"; }
-
-
-    $txt = "🔎 *Consulta completa CPF*\n\n".
+    // 3️⃣ TEXTO FINAL
+    $txt = "✅ *Consulta Finalizada*\n\n".
     "🪪 *Nome:* ".$d["NOME"]."\n".
     "🧬 *Sexo:* ".$d["SEXO"]."\n".
     "🎂 *Nascimento:* ".$d["NASC"]."\n".
     "👩 *Mãe:* ".$d["NOME_MAE"]."\n".
-    "👨 *Pai:* ".$d["NOME_PAI"]."\n".
-    "💍 *Estado Civil:* ".$d["ESTCIV"]."\n\n".
-
+    "👨 *Pai:* ".$d["NOME_PAI"]."\n\n".
     "📧 *Emails:*\n".$emails."\n".
-    "🏠 *Endereços:*\n".$ends.
-    "📊 *Score:*\n".$score."\n".
-    "👪 *Parentes:*\n".$parent."\n\n".
-    "🔧 Créditos: @silenciante";
+    "🏠 *Endereços:*\n".$ends."\n\n".
+    "⚙️ Créditos: @silenciante";
 
+    // 4️⃣ EDITA A MENSAGEM FINAL
+    file_get_contents($apiURL."editMessageText?chat_id=$chat_id&message_id=$msg_id&parse_mode=Markdown&text=".urlencode($txt));
 
-    $kb=[
-        "inline_keyboard"=>[
-            [["text"=>"🗑 Apagar","callback_data"=>"cpf_full_del"]]
-        ]
-    ];
-
-    sendMessage($chat_id, $txt, $kb);
-    exit;
-}
-
-
-// apagar
-if($callback_data=="cpf_full_del"){
-    file_get_contents($apiURL."deleteMessage?chat_id=$chat_id&message_id=$message_id");
     exit;
 }
 
