@@ -245,6 +245,23 @@ if(isset($update->callback_query)){
     }
 }
 
+function animacaoConsultando($chat_id, $message_id, $cpf, $tempo = 6) {
+    $frames = [
+        "🔍 *Consultando CPF...*\n\nCPF: `$cpf`\n⏳ Aguarde por favor\n\n[● ○ ○ ○]",
+        "🔍 *Consultando CPF...*\n\nCPF: `$cpf`\n⏳ Aguarde por favor\n\n[○ ● ○ ○]",
+        "🔍 *Consultando CPF...*\n\nCPF: `$cpf`\n⏳ Aguarde por favor\n\n[○ ○ ● ○]",
+        "🔍 *Consultando CPF...*\n\nCPF: `$cpf`\n⏳ Aguarde por favor\n\n[○ ○ ○ ●]"
+    ];
+
+    $loops = $tempo * 2; // duração total da animação
+
+    for ($i = 0; $i < $loops; $i++) {
+        $frame = $frames[$i % count($frames)];
+        editMessage($chat_id, $message_id, $frame);
+        usleep(500000); // 0.5s
+    }
+}
+
 // --- CALLBACK /OBITO ---
 if ($callback_query == "cmd_obito") {
     $texto = "⚰️ • *Adição de Óbito*\n\n"
@@ -438,7 +455,10 @@ function comandoConsultaSimulada($chat_id, $cpf) {
     ];
 
     // Envia mensagem inicial e obtém message_id (usa tua função sendMessage)
-    $initial = sendMessage($chat_id, "⌛ Iniciando consulta..."); // espera message_id
+    $message_id = $initial;
+
+// animação visual de consulta
+animacaoConsultando($chat_id, $message_id, $cpf, 5);
     if (is_array($initial) && isset($initial['result']['message_id'])) {
         $message_id = $initial['result']['message_id'];
     } else {
@@ -710,7 +730,7 @@ function loadLastResult($chat_id) {
 }
 
 
-// --- /cpf completo ---
+// --- /cpf completo com animação ---
 if (strpos($message, "/cpf") === 0) {
 
     $parts = explode(" ", $message);
@@ -721,18 +741,28 @@ if (strpos($message, "/cpf") === 0) {
 
     $cpf = preg_replace("/\D/", "", $parts[1]);
 
+    // 1. Mensagem animada de consulta
+    $loading = sendMessage($chat_id,
+        "🔎 *Consultando CPF...*\n\n⏳ Aguarde alguns segundos, buscando dados em nossos servidores...",
+        null,
+        true
+    );
+
+    $loading_message_id = $loading["result"]["message_id"];
+
+    // 2. Consulta API
     $api = "https://apis-brasil.shop/apis/apiserasacpf2025.php?cpf=$cpf";
     $json = @file_get_contents($api);
 
     if(!$json){
-        sendMessage($chat_id, "❌ Sem resposta da API");
+        editMessage($chat_id, $loading_message_id, "❌ Sem resposta da API");
         exit;
     }
 
     $r = json_decode($json, true);
 
     if(!isset($r["DADOS"])){
-        sendMessage($chat_id, "❌ CPF não encontrado");
+        editMessage($chat_id, $loading_message_id, "❌ CPF não encontrado");
         exit;
     }
 
@@ -763,7 +793,9 @@ if (strpos($message, "/cpf") === 0) {
     if(isset($r["SCORE"]) && count($r["SCORE"])>0){
         $score.="CSB8: ".$r["SCORE"][0]["CSB8"]." (".$r["SCORE"][0]["CSB8_FAIXA"].")\n";
         $score.="CSBA: ".$r["SCORE"][0]["CSBA"]." (".$r["SCORE"][0]["CSBA_FAIXA"].")\n";
-    } else { $score.="Sem score\n"; }
+    } else { 
+        $score.="Sem score\n"; 
+    }
 
     // parentes
     $parent="";
@@ -771,8 +803,9 @@ if (strpos($message, "/cpf") === 0) {
         foreach($r["PARENTES"] as $p){
             $parent.="👪 ".$p["NOME"]." - ".$p["VINCULO"]."\n";
         }
-    } else { $parent.="Nenhum parente listado\n"; }
-
+    } else { 
+        $parent.="Nenhum parente listado\n"; 
+    }
 
     $txt = "🔎 *Consulta completa CPF*\n\n".
     "🪪 *Nome:* ".$d["NOME"]."\n".
@@ -781,13 +814,11 @@ if (strpos($message, "/cpf") === 0) {
     "👩 *Mãe:* ".$d["NOME_MAE"]."\n".
     "👨 *Pai:* ".$d["NOME_PAI"]."\n".
     "💍 *Estado Civil:* ".$d["ESTCIV"]."\n\n".
-
     "📧 *Emails:*\n".$emails."\n".
     "🏠 *Endereços:*\n".$ends.
     "📊 *Score:*\n".$score."\n".
     "👪 *Parentes:*\n".$parent."\n\n".
     "🔧 Créditos: @silenciante";
-
 
     $kb=[
         "inline_keyboard"=>[
@@ -795,7 +826,9 @@ if (strpos($message, "/cpf") === 0) {
         ]
     ];
 
-    sendMessage($chat_id, $txt, $kb);
+    // 3. Edita a mensagem de "consultando" com o retorno final
+    editMessage($chat_id, $loading_message_id, $txt, $kb);
+
     exit;
 }
 
