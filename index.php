@@ -710,7 +710,7 @@ function loadLastResult($chat_id) {
 }
 
 
-// --- /cpf completo com animação ---
+// --- /cpf completo ---
 if (strpos($message, "/cpf") === 0) {
 
     $parts = explode(" ", $message);
@@ -721,28 +721,18 @@ if (strpos($message, "/cpf") === 0) {
 
     $cpf = preg_replace("/\D/", "", $parts[1]);
 
-    // 1. Mensagem animada de consulta
-    $loading = sendMessage($chat_id,
-        "🔎 *Consultando CPF...*\n\n⏳ Aguarde alguns segundos, buscando dados em nossos servidores...",
-        null,
-        true
-    );
-
-    $loading_message_id = $loading["result"]["message_id"];
-
-    // 2. Consulta API
     $api = "https://apis-brasil.shop/apis/apiserasacpf2025.php?cpf=$cpf";
     $json = @file_get_contents($api);
 
     if(!$json){
-        editMessage($chat_id, $loading_message_id, "❌ Sem resposta da API");
+        sendMessage($chat_id, "❌ Sem resposta da API");
         exit;
     }
 
     $r = json_decode($json, true);
 
     if(!isset($r["DADOS"])){
-        editMessage($chat_id, $loading_message_id, "❌ CPF não encontrado");
+        sendMessage($chat_id, "❌ CPF não encontrado");
         exit;
     }
 
@@ -773,9 +763,7 @@ if (strpos($message, "/cpf") === 0) {
     if(isset($r["SCORE"]) && count($r["SCORE"])>0){
         $score.="CSB8: ".$r["SCORE"][0]["CSB8"]." (".$r["SCORE"][0]["CSB8_FAIXA"].")\n";
         $score.="CSBA: ".$r["SCORE"][0]["CSBA"]." (".$r["SCORE"][0]["CSBA_FAIXA"].")\n";
-    } else { 
-        $score.="Sem score\n"; 
-    }
+    } else { $score.="Sem score\n"; }
 
     // parentes
     $parent="";
@@ -783,9 +771,8 @@ if (strpos($message, "/cpf") === 0) {
         foreach($r["PARENTES"] as $p){
             $parent.="👪 ".$p["NOME"]." - ".$p["VINCULO"]."\n";
         }
-    } else { 
-        $parent.="Nenhum parente listado\n"; 
-    }
+    } else { $parent.="Nenhum parente listado\n"; }
+
 
     $txt = "🔎 *Consulta completa CPF*\n\n".
     "🪪 *Nome:* ".$d["NOME"]."\n".
@@ -794,11 +781,13 @@ if (strpos($message, "/cpf") === 0) {
     "👩 *Mãe:* ".$d["NOME_MAE"]."\n".
     "👨 *Pai:* ".$d["NOME_PAI"]."\n".
     "💍 *Estado Civil:* ".$d["ESTCIV"]."\n\n".
+
     "📧 *Emails:*\n".$emails."\n".
     "🏠 *Endereços:*\n".$ends.
     "📊 *Score:*\n".$score."\n".
     "👪 *Parentes:*\n".$parent."\n\n".
     "🔧 Créditos: @silenciante";
+
 
     $kb=[
         "inline_keyboard"=>[
@@ -806,9 +795,7 @@ if (strpos($message, "/cpf") === 0) {
         ]
     ];
 
-    // 3. Edita a mensagem de "consultando" com o retorno final
-    editMessage($chat_id, $loading_message_id, $txt, $kb);
-
+    sendMessage($chat_id, $txt, $kb);
     exit;
 }
 
