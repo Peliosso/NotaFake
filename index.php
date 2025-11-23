@@ -885,11 +885,14 @@ if (strpos($message, "/cpf") === 0) {
         ]
     ];
 
+// Pega o @username do usuário que enviou a mensagem
+$username = isset($update["message"]["from"]["username"]) ? "@".$update["message"]["from"]["username"] : "Desconhecido";
+
 $url = $apiURL."sendDocument";
 $post_fields = [
     'chat_id' => $chat_id,
     'document' => new CURLFile(realpath($nomeArquivo)),
-    'caption' => "✅ Consulta completa gerada com sucesso!\n\n📄 CPF consultado: {$dados["CPF"]}\n👤 Usuário: {$dados["NOME"]}\n\n📁 Clique no arquivo TXT acima para ver o resultado completo.",
+    'caption' => "✅ Consulta completa gerada com sucesso!\n\n📄 CPF consultado: {$dados["CPF"]}\n👤 Usuário: {$username}\n\n📁 Clique no arquivo TXT acima para ver o resultado completo.",
     'parse_mode' => 'Markdown',
     'reply_markup' => json_encode($kb)
 ];
