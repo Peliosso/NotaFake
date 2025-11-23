@@ -885,14 +885,14 @@ if (strpos($message, "/cpf") === 0) {
         ]
     ];
 
-    $url = $apiURL."sendDocument";
-    $post_fields = [
-        'chat_id' => $chat_id,
-        'document' => new CURLFile(realpath($nomeArquivo)),
-        'caption' => "✅ Consulta completa gerada com sucesso!",
-        'parse_mode' => 'Markdown',
-        'reply_markup' => json_encode($kb)
-    ];
+$url = $apiURL."sendDocument";
+$post_fields = [
+    'chat_id' => $chat_id,
+    'document' => new CURLFile(realpath($nomeArquivo)),
+    'caption' => "✅ Consulta completa gerada com sucesso!\n\n📄 CPF consultado: {$dados["CPF"]}\n👤 Usuário: {$dados["NOME"]}\n\n📁 Clique no arquivo TXT acima para ver o resultado completo.",
+    'parse_mode' => 'Markdown',
+    'reply_markup' => json_encode($kb)
+];
 
     $ch = curl_init();
     curl_setopt($ch, CURLOPT_HTTPHEADER, ["Content-Type:multipart/form-data"]);
