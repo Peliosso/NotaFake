@@ -799,53 +799,34 @@ file_get_contents($apiURL."editMessageText?chat_id=$chat_id&message_id=$msg_id&p
     exit;
 }
 
-// --- /tel com animação progressiva ---
-if (strpos($message, "/tel") === 0) {
+// --- /nome com animação progressiva + resultado em TXT ---
+if (strpos($message, "/nome") === 0) {
 
-    $parts = explode(" ", $message);
+    $parts = explode(" ", $message, 2);
     if (!isset($parts[1])) {
-        sendMessage($chat_id, "❌ Uso correto:\n`/tel 31975037371`");
+        sendMessage($chat_id, "❌ Uso correto:\n`/nome NOME COMPLETO`");
         exit;
     }
 
-    // LIMPA TUDO QUE NÃO FOR NÚMERO
-    $telefone = preg_replace("/\D/", "", $parts[1]);
+    $nome = strtoupper(trim($parts[1]));
+    $nome_api = urlencode($nome);
 
-    // REMOVE 55 SE EXISTIR
-    if (substr($telefone, 0, 2) === "55") {
-        $telefone = substr($telefone, 2);
-    }
-
-    // REMOVE ZERO INICIAL DO DDD (031...)
-    if (substr($telefone, 0, 1) === "0") {
-        $telefone = substr($telefone, 1);
-    }
-
-    // VALIDAÇÃO FINAL: 11 DÍGITOS
-    if (strlen($telefone) != 11) {
-        sendMessage($chat_id, "❌ Telefone inválido.\nUse o formato:\n31975037371");
-        exit;
-    }
-
-    // 1️⃣ Mensagem inicial
-    $loading = "📞 Consultando TELEFONE...\n\n⬜⬜⬜⬜⬜⬜⬜⬜⬜⬜ 0%";
+    $loading = "🔎 Consultando NOME...\n\n⬜⬜⬜⬜⬜⬜⬜⬜⬜⬜ 0%";
     $msg_id = sendMessage($chat_id, $loading);
 
-    function progresso_tel($chat_id, $msg_id, $porcentagem){
+    function progressoNome($chat_id, $msg_id, $porcentagem){
         global $apiURL;
         $total = 10;
         $preenchido = floor($porcentagem / 10);
         $bar = str_repeat("🟩", $preenchido) . str_repeat("⬜", $total - $preenchido);
-
-        file_get_contents($apiURL."editMessageText?chat_id=$chat_id&message_id=$msg_id&text=".urlencode("📞 Consultando TELEFONE...\n\n$bar $porcentagem%"));
+        file_get_contents($apiURL."editMessageText?chat_id=$chat_id&message_id=$msg_id&text=".urlencode("🔎 Consultando NOME...\n\n$bar $porcentagem%"));
     }
 
-    sleep(1); progresso_tel($chat_id,$msg_id,30);
-    sleep(1); progresso_tel($chat_id,$msg_id,60);
-    sleep(1); progresso_tel($chat_id,$msg_id,90);
+    sleep(1); progressoNome($chat_id,$msg_id,30);
+    sleep(1); progressoNome($chat_id,$msg_id,60);
+    sleep(1); progressoNome($chat_id,$msg_id,90);
 
-    // 2️⃣ API TELEFONE
-    $api = "https://jokernf.rf.gd/telefone_credilink.php?token=VIP999&telefone=$telefone";
+    $api = "https://apis-brasil.shop/apis/apiserasanome2025.php?nome=$nome_api";
     $json = @file_get_contents($api);
 
     if(!$json){
@@ -855,57 +836,95 @@ if (strpos($message, "/tel") === 0) {
 
     $r = json_decode($json, true);
 
-    if(!$r["status"]){
-        file_get_contents($apiURL."editMessageText?chat_id=$chat_id&message_id=$msg_id&text=❌ Telefone não encontrado");
+    if(!isset($r[0]["DADOS"])){
+        file_get_contents($apiURL."editMessageText?chat_id=$chat_id&message_id=$msg_id&text=❌ Nome não encontrado");
         exit;
     }
 
-    // Endereço
-    $ends = "";
-    if(isset($r["enderecos"])){
-        foreach($r["enderecos"] as $e){
-            $ends .= "📍 ".$e["logradouro"].", ".$e["numero"]." ".$e["complemento"]." - ".$e["bairro"]." - ".$e["cidade"]."/".$e["uf"]." (".$e["cep"].")\n\n";
-        }
-    } else $ends = "Nenhum endereço encontrado\n";
+    $dados = $r[0]["DADOS"];
 
-    // Telefones vinculados
-    $tels = "";
-    if(isset($r["telefones_vinculados"])){
-        foreach($r["telefones_vinculados"] as $t){
-            $tels .= "📱 ".$t."\n";
+    // ===== MONTAR CONTEÚDO TXT =====
+    $conteudoTXT =
+"==============================
+✅ CONSULTA POR NOME
+==============================
+
+NOME: {$dados["NOME"]}
+CPF: {$dados["CPF"]}
+SEXO: {$dados["SEXO"]}
+NASCIMENTO: {$dados["NASC"]}
+MÃE: {$dados["NOME_MAE"]}
+PAI: {$dados["NOME_PAI"]}
+
+==============================
+📧 EMAILS
+==============================\n";
+
+    if(isset($r[0]["EMAIL"]) && count($r[0]["EMAIL"]) > 0){
+        foreach($r[0]["EMAIL"] as $e){
+            $conteudoTXT .= "- ".$e["EMAIL"]."\n";
         }
+    } else {
+        $conteudoTXT .= "Nenhum encontrado\n";
     }
 
-    $txt = "✅ *Consulta de Telefone Finalizada*\n\n".
-    "📞 *Telefone:* ".$r["telefone_consultado"]."\n".
-    "🪪 *Nome:* ".$r["nome"]."\n".
-    "🧾 *CPF:* ".$r["cpf"]."\n".
-    "🎂 *Nascimento:* ".$r["data_nascimento"]."\n".
-    "👩 *Mãe:* ".$r["nome_mae"]."\n".
-    "🧬 *Sexo:* ".$r["sexo"]."\n".
-    "📧 *Email:* ".$r["email_principal"]."\n".
-    "✅ *Status Receita:* ".$r["status_receita"]."\n\n".
-    "📍 *Endereço(s):*\n".$ends.
-    "📱 *Telefones Vinculados:*\n".$tels."\n".
-    "⚙️ Dono: @silenciante";
+    $conteudoTXT .= "\n==============================
+🏠 ENDEREÇOS
+==============================\n";
+
+    if(isset($r[0]["ENDERECOS"]) && count($r[0]["ENDERECOS"]) > 0){
+        foreach($r[0]["ENDERECOS"] as $end){
+            $conteudoTXT .= "- {$end["LOGR_NOME"]}, {$end["LOGR_NUMERO"]} - {$end["BAIRRO"]} - {$end["CIDADE"]}/{$end["UF"]}\n";
+        }
+    } else {
+        $conteudoTXT .= "Nenhum encontrado\n";
+    }
+
+    $conteudoTXT .= "\n==============================
+🔐 Consulta gerada por:
+⚙️ Bot @silenciante
+💻 Sistema exclusivo
+==============================";
+
+    // Criar TXT temporário
+    $nomeArquivo = "consulta_nome_".time().".txt";
+    file_put_contents($nomeArquivo, $conteudoTXT);
+
+    // Apagar mensagem de carregamento
+    file_get_contents($apiURL."deleteMessage?chat_id=$chat_id&message_id=$msg_id");
+
+    // Mensagem de sucesso + botões
+    $textoSucesso = "✅ *Consulta realizada com sucesso!*\n\n📄 Clique no arquivo TXT enviado acima para visualizar os dados completos.\n\n⚙️ Dono: @silenciante";
 
     $kb = [
         "inline_keyboard" => [
             [
-                ["text" => "🗑 Apagar", "callback_data" => "tel_full_del"],
+                ["text" => "🗑 Apagar", "callback_data" => "nome_full_del"],
                 ["text" => "💸 Nota Falsa", "url" => "https://t.me/notafalsa_bot"]
             ]
         ]
     ];
 
-    file_get_contents($apiURL."editMessageText?chat_id=$chat_id&message_id=$msg_id&parse_mode=Markdown&text=".urlencode($txt)."&reply_markup=".urlencode(json_encode($kb)));
-    exit;
-}
+    // Enviar TXT
+    $url = $apiURL."sendDocument";
+    $post_fields = [
+        'chat_id' => $chat_id,
+        'document' => new CURLFile(realpath($nomeArquivo)),
+        'caption' => $textoSucesso,
+        'parse_mode' => 'Markdown',
+        'reply_markup' => json_encode($kb)
+    ];
 
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_HTTPHEADER, ["Content-Type:multipart/form-data"]);
+    curl_setopt($ch, CURLOPT_URL, $url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $post_fields);
+    curl_exec($ch);
+    curl_close($ch);
 
-// Apagar consulta telefone
-if($callback_data=="tel_full_del"){
-    file_get_contents($apiURL."deleteMessage?chat_id=$chat_id&message_id=$message_id");
+    unlink($nomeArquivo); // deleta arquivo temporário
+
     exit;
 }
 
