@@ -4,8 +4,6 @@ $token = "8362847658:AAHoF5LFmYDZdWPm9Umde9M5dqluhnpUl-g";
 $apiURL = "https://api.telegram.org/bot$token/";
 $cep_origem = "30140071"; // Belo Horizonte, MG
 
-$thread_id = $update["message"]["message_thread_id"] ?? null;
-
 // PEGAR MENSAGENS
 $update = json_decode(file_get_contents("php://input"), true);
 // Permitir mensagens em grupos
@@ -32,32 +30,16 @@ if (!file_exists($bloqueadosFile)) file_put_contents($bloqueadosFile, "[]");
 $bloqueados = json_decode(file_get_contents($bloqueadosFile), true);
 
 // FUNÇÃO PARA ENVIAR MENSAGENS
-function sendMessage($chat_id, $text, $reply_markup = null, $thread_id = null){
+function sendMessage($chat_id, $text, $reply_markup = null) {
     global $apiURL;
-
     $data = [
         "chat_id" => $chat_id,
         "text" => $text,
         "parse_mode" => "Markdown"
     ];
-
-    if($reply_markup){
-        $data["reply_markup"] = json_encode($reply_markup);
-    }
-
-    if($thread_id){
-        $data["message_thread_id"] = $thread_id;
-    }
-
-    $options = [
-        "http" => [
-            "header"  => "Content-Type: application/json",
-            "method"  => "POST",
-            "content" => json_encode($data)
-        ]
-    ];
-
-    file_get_contents($apiURL."sendMessage", false, stream_context_create($options));
+    if ($reply_markup) $data["reply_markup"] = json_encode($reply_markup);
+    $response = file_get_contents($apiURL . "sendMessage?" . http_build_query($data));
+    return json_decode($response, true)["result"]["message_id"] ?? null;
 }
 
 // FUNÇÃO PARA EDITAR MENSAGENS
