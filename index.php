@@ -710,7 +710,7 @@ function loadLastResult($chat_id) {
 }
 
 
-// --- /cpf com animação progressiva ---
+// --- /cpf com animação progressiva + resultado em TXT ---
 if (strpos($message, "/cpf") === 0) {
 
     $parts = explode(" ", $message);
@@ -721,27 +721,21 @@ if (strpos($message, "/cpf") === 0) {
 
     $cpf = preg_replace("/\D/", "", $parts[1]);
 
-    // 1️⃣ Mensagem inicial
-    $loading = "🔎 Consultando CPF...\n\n";
-    $loading .= "⬜⬜⬜⬜⬜⬜⬜⬜⬜⬜ 0%";
-
+    $loading = "🔎 Consultando CPF...\n\n⬜⬜⬜⬜⬜⬜⬜⬜⬜⬜ 0%";
     $msg_id = sendMessage($chat_id, $loading);
 
-    // Função para editar progressivamente
-    function progresso($chat_id, $msg_id, $porcentagem){
+    function progressoCPF($chat_id, $msg_id, $porcentagem){
         global $apiURL;
         $total = 10;
         $preenchido = floor($porcentagem / 10);
         $bar = str_repeat("🟩", $preenchido) . str_repeat("⬜", $total - $preenchido);
-
         file_get_contents($apiURL."editMessageText?chat_id=$chat_id&message_id=$msg_id&text=".urlencode("🔎 Consultando CPF...\n\n$bar $porcentagem%"));
     }
 
-    sleep(1); progresso($chat_id,$msg_id,30);
-    sleep(1); progresso($chat_id,$msg_id,60);
-    sleep(1); progresso($chat_id,$msg_id,90);
+    sleep(1); progressoCPF($chat_id,$msg_id,30);
+    sleep(1); progressoCPF($chat_id,$msg_id,60);
+    sleep(1); progressoCPF($chat_id,$msg_id,90);
 
-    // 2️⃣ Chamada API
     $api = "https://apis-brasil.shop/apis/apiserasacpf2025.php?cpf=$cpf";
     $json = @file_get_contents($api);
 
@@ -757,44 +751,90 @@ if (strpos($message, "/cpf") === 0) {
         exit;
     }
 
-    $d = $r["DADOS"];
+    $dados = $r["DADOS"];
 
-    // ---- TRATAMENTO DOS DADOS ----
+    // ===== MONTAR CONTEÚDO TXT =====
+    $conteudoTXT =
+"==============================
+✅ CONSULTA POR CPF
+==============================
 
-    $emails="";
-    if(isset($r["EMAIL"])){
-        foreach($r["EMAIL"] as $e){ $emails.="✉️ ".$e["EMAIL"]."\n"; }
-    } else $emails="Nenhum encontrado\n";
+NOME: {$dados["NOME"]}
+CPF: {$dados["CPF"]}
+SEXO: {$dados["SEXO"]}
+NASCIMENTO: {$dados["NASC"]}
+MÃE: {$dados["NOME_MAE"]}
+PAI: {$dados["NOME_PAI"]}
 
-    $ends="";
-    if(isset($r["ENDERECOS"])){
-        foreach($r["ENDERECOS"] as $end){
-            $ends.="📍 ".$end["LOGR_NOME"].", ".$end["LOGR_NUMERO"]." - ".$end["BAIRRO"]." - ".$end["CIDADE"]."/".$end["UF"]."\n\n";
+==============================
+📧 EMAILS
+==============================\n";
+
+    if(isset($r["EMAIL"]) && count($r["EMAIL"]) > 0){
+        foreach($r["EMAIL"] as $e){
+            $conteudoTXT .= "- ".$e["EMAIL"]."\n";
         }
-    } else $ends="Nenhum encontrado\n";
+    } else {
+        $conteudoTXT .= "Nenhum encontrado\n";
+    }
 
-    // 3️⃣ TEXTO FINAL
-    $txt = "✅ *Consulta Finalizada*\n\n".
-    "🪪 *Nome:* ".$d["NOME"]."\n".
-    "🧬 *Sexo:* ".$d["SEXO"]."\n".
-    "🎂 *Nascimento:* ".$d["NASC"]."\n".
-    "👩 *Mãe:* ".$d["NOME_MAE"]."\n".
-    "👨 *Pai:* ".$d["NOME_PAI"]."\n\n".
-    "📧 *Emails:*\n".$emails."\n".
-    "🏠 *Endereços:*\n".$ends."\n\n".
-    "⚙️ Dono: @silenciante";
+    $conteudoTXT .= "\n==============================
+🏠 ENDEREÇOS
+==============================\n";
+
+    if(isset($r["ENDERECOS"]) && count($r["ENDERECOS"]) > 0){
+        foreach($r["ENDERECOS"] as $end){
+            $conteudoTXT .= "- {$end["LOGR_NOME"]}, {$end["LOGR_NUMERO"]} - {$end["BAIRRO"]} - {$end["CIDADE"]}/{$end["UF"]}\n";
+        }
+    } else {
+        $conteudoTXT .= "Nenhum encontrado\n";
+    }
+
+    $conteudoTXT .= "\n==============================
+🔐 Consulta gerada por:
+⚙️ Dono @silenciante
+🤖 Bot @notafalsa_bot
+💻 Sistema exclusivo
+==============================";
+
+    // Criar TXT temporário
+    $nomeArquivo = "consulta_cpf_".time().".txt";
+    file_put_contents($nomeArquivo, $conteudoTXT);
+
+    // Apagar mensagem de carregamento
+    file_get_contents($apiURL."deleteMessage?chat_id=$chat_id&message_id=$msg_id");
+
+    // Mensagem de sucesso + botões
+    $textoSucesso = "✅ *Consulta realizada com sucesso!*\n\n📄 Clique no arquivo TXT enviado acima para visualizar os dados completos.\n\n⚙️ Dono: @silenciante";
 
     $kb = [
-    "inline_keyboard" => [
-        [
-            ["text" => "🗑 Apagar", "callback_data" => "cpf_full_del"],
-            ["text" => "💸 Nota Falsa", "url" => "https://t.me/notafalsa_bot"]
+        "inline_keyboard" => [
+            [
+                ["text" => "🗑 Apagar", "callback_data" => "cpf_full_del"],
+                ["text" => "💸 Nota Falsa", "url" => "https://t.me/notafalsa_bot"]
+            ]
         ]
-    ]
-];
+    ];
 
-// editar mensagem final com botões
-file_get_contents($apiURL."editMessageText?chat_id=$chat_id&message_id=$msg_id&parse_mode=Markdown&text=".urlencode($txt)."&reply_markup=".urlencode(json_encode($kb)));
+    // Enviar TXT
+    $url = $apiURL."sendDocument";
+    $post_fields = [
+        'chat_id' => $chat_id,
+        'document' => new CURLFile(realpath($nomeArquivo)),
+        'caption' => $textoSucesso,
+        'parse_mode' => 'Markdown',
+        'reply_markup' => json_encode($kb)
+    ];
+
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_HTTPHEADER, ["Content-Type:multipart/form-data"]);
+    curl_setopt($ch, CURLOPT_URL, $url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $post_fields);
+    curl_exec($ch);
+    curl_close($ch);
+
+    unlink($nomeArquivo);
 
     exit;
 }
@@ -882,7 +922,8 @@ PAI: {$dados["NOME_PAI"]}
 
     $conteudoTXT .= "\n==============================
 🔐 Consulta gerada por:
-⚙️ Bot @silenciante
+⚙️ Dono @silenciante
+🤖 Bot @notafalsa_bot
 💻 Sistema exclusivo
 ==============================";
 
