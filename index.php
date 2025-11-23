@@ -4,17 +4,23 @@ $token = "8362847658:AAHoF5LFmYDZdWPm9Umde9M5dqluhnpUl-g";
 $apiURL = "https://api.telegram.org/bot$token/";
 $cep_origem = "30140071"; // Belo Horizonte, MG
 
-// PEGAR MENSAGENS
+// ✅ PRIMEIRO capturar o update
 $update = json_decode(file_get_contents("php://input"), true);
-// Permitir mensagens em grupos
-if (isset($update["message"]["chat"]["type"]) && $update["message"]["chat"]["type"] != "private") {
-    $message = $update["message"]["text"] ?? "";
-    $chat_id = $update["message"]["chat"]["id"];
-}
-$chat_id = $update["message"]["chat"]["id"] ?? $update["callback_query"]["message"]["chat"]["id"];
+
+// ✅ PEGAR DADOS PRINCIPAIS
+$chat_id = $update["message"]["chat"]["id"] 
+        ?? $update["callback_query"]["message"]["chat"]["id"] 
+        ?? null;
+
 $message = $update["message"]["text"] ?? null;
 $callback_query = $update["callback_query"]["data"] ?? null;
 $message_id = $update["callback_query"]["message"]["message_id"] ?? null;
+
+// ✅ ESSENCIAL PARA TÓPICOS
+$thread_id = $update["message"]["message_thread_id"] 
+          ?? $update["callback_query"]["message"]["message_thread_id"] 
+          ?? null;
+
 
 // ARQUIVOS PARA SALVAR OS DADOS
 $usuariosFile = "usuarios.json";
@@ -29,29 +35,52 @@ $bloqueadosFile = "bloqueados.json";
 if (!file_exists($bloqueadosFile)) file_put_contents($bloqueadosFile, "[]");
 $bloqueados = json_decode(file_get_contents($bloqueadosFile), true);
 
+
 // FUNÇÃO PARA ENVIAR MENSAGENS
-function sendMessage($chat_id, $text, $reply_markup = null) {
+function sendMessage($chat_id, $text, $reply_markup = null, $thread_id = null){
     global $apiURL;
+
     $data = [
         "chat_id" => $chat_id,
         "text" => $text,
         "parse_mode" => "Markdown"
     ];
-    if ($reply_markup) $data["reply_markup"] = json_encode($reply_markup);
-    $response = file_get_contents($apiURL . "sendMessage?" . http_build_query($data));
-    return json_decode($response, true)["result"]["message_id"] ?? null;
+
+    if($reply_markup){
+        $data["reply_markup"] = json_encode($reply_markup);
+    }
+
+    if($thread_id){
+        $data["message_thread_id"] = $thread_id;
+    }
+
+    $options = [
+        "http" => [
+            "header"  => "Content-Type: application/json",
+            "method"  => "POST",
+            "content" => json_encode($data)
+        ]
+    ];
+
+    file_get_contents($apiURL."sendMessage", false, stream_context_create($options));
 }
+
 
 // FUNÇÃO PARA EDITAR MENSAGENS
 function editMessage($chat_id, $message_id, $text, $reply_markup = null) {
     global $apiURL;
+
     $data = [
         "chat_id" => $chat_id,
         "message_id" => $message_id,
         "text" => $text,
         "parse_mode" => "Markdown"
     ];
-    if ($reply_markup) $data["reply_markup"] = json_encode($reply_markup);
+
+    if ($reply_markup) {
+        $data["reply_markup"] = json_encode($reply_markup);
+    }
+
     file_get_contents($apiURL . "editMessageText?" . http_build_query($data));
 }
 
