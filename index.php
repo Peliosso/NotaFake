@@ -710,7 +710,7 @@ function loadLastResult($chat_id) {
 }
 
 
-// --- /cpf com animação progressiva + resultado em TXT ---
+// --- /cpf com animação progressiva + resultado em TXT COMPLETO ---
 if (strpos($message, "/cpf") === 0) {
 
     $parts = explode(" ", $message);
@@ -753,29 +753,69 @@ if (strpos($message, "/cpf") === 0) {
 
     $dados = $r["DADOS"];
 
-    // ===== MONTAR CONTEÚDO TXT =====
+    // ===== FUNÇÃO SIGNO =====
+    function calcularSigno($data){
+        [$ano,$mes,$dia] = explode('-', substr($data,0,10));
+        $dia = (int)$dia; $mes = (int)$mes;
+
+        $signos = [
+            ['Capricórnio',19],['Aquário',18],['Peixes',20],['Áries',19],
+            ['Touro',20],['Gêmeos',20],['Câncer',22],['Leão',22],
+            ['Virgem',22],['Libra',22],['Escorpião',21],['Sagitário',21]
+        ];
+
+        return ($dia > $signos[$mes-1][1]) ? $signos[$mes][0] ?? 'Capricórnio' : $signos[$mes-1][0];
+    }
+
+    $signo = $dados["NASC"] ? calcularSigno($dados["NASC"]) : "Não informado";
+
+    // ===== STATUS ÓBITO =====
+    $statusObito = empty($dados["DT_OB"]) ? "✅ Tá viva!" : "☠️ Tá morta!";
+
+    $nomePai = empty($dados["NOME_PAI"]) ? "Comprou cigarro!" : $dados["NOME_PAI"];
+    $nomeMae = empty($dados["NOME_MAE"]) ? "Comprou cigarro!" : $dados["NOME_MAE"];
+
+    // ===== TXT =====
     $conteudoTXT =
 "==============================
-✅ CONSULTA POR CPF
+✅ CONSULTA CPF COMPLETA
 ==============================
 
-NOME: {$dados["NOME"]}
-CPF: {$dados["CPF"]}
-SEXO: {$dados["SEXO"]}
-NASCIMENTO: {$dados["NASC"]}
-MÃE: {$dados["NOME_MAE"]}
-PAI: {$dados["NOME_PAI"]}
+👤 NOME: {$dados["NOME"]}
+📄 CPF: {$dados["CPF"]}
+⚧ SEXO: {$dados["SEXO"]}
+🎂 NASCIMENTO: {$dados["NASC"]}
+🔮 SIGNO: $signo
+💀 STATUS: $statusObito
+
+👩 MÃE: $nomeMae
+👨 PAI: $nomePai
+
+💰 RENDA: {$dados["RENDA"]}
+📊 MOSAIC: {$dados["CD_MOSAIC"]}
 
 ==============================
+📞 TELEFONES
+==============================\n";
+
+    if(isset($r["TELEFONE"]) && count($r["TELEFONE"]) > 0){
+        foreach($r["TELEFONE"] as $t){
+            $conteudoTXT .= "- ({$t["DDD"]}) {$t["TELEFONE"]} | Classificação: {$t["CLASSIFICACAO"]}\n";
+        }
+    } else {
+        $conteudoTXT .= "Nenhum telefone encontrado\n";
+    }
+
+    $conteudoTXT .= "\n==============================
 📧 EMAILS
 ==============================\n";
 
     if(isset($r["EMAIL"]) && count($r["EMAIL"]) > 0){
         foreach($r["EMAIL"] as $e){
-            $conteudoTXT .= "- ".$e["EMAIL"]."\n";
+            $conteudoTXT .= "- {$e["EMAIL"]}\n";
         }
     } else {
-        $conteudoTXT .= "Nenhum encontrado\n";
+        $conteudoTXT .= "Nenhum e-mail encontrado\n";
     }
 
     $conteudoTXT .= "\n==============================
@@ -784,10 +824,44 @@ PAI: {$dados["NOME_PAI"]}
 
     if(isset($r["ENDERECOS"]) && count($r["ENDERECOS"]) > 0){
         foreach($r["ENDERECOS"] as $end){
-            $conteudoTXT .= "- {$end["LOGR_NOME"]}, {$end["LOGR_NUMERO"]} - {$end["BAIRRO"]} - {$end["CIDADE"]}/{$end["UF"]}\n";
+            $conteudoTXT .= "- {$end["LOGR_NOME"]}, {$end["LOGR_NUMERO"]} - {$end["BAIRRO"]} - {$end["CIDADE"]}/{$end["UF"]} CEP {$end["CEP"]}\n";
         }
     } else {
-        $conteudoTXT .= "Nenhum encontrado\n";
+        $conteudoTXT .= "Nenhum endereço encontrado\n";
+    }
+
+    $conteudoTXT .= "\n==============================
+👪 PARENTES
+==============================\n";
+
+    if(isset($r["PARENTES"]) && count($r["PARENTES"]) > 0){
+        foreach($r["PARENTES"] as $p){
+            $conteudoTXT .= "- {$p["NOME_VINCULO"]} ({$p["VINCULO"]}) CPF: {$p["CPF_VINCULO"]}\n";
+        }
+    } else {
+        $conteudoTXT .= "Nenhum parente registrado\n";
+    }
+
+    $conteudoTXT .= "\n==============================
+📊 SCORE
+==============================\n";
+
+    if(isset($r["SCORE"][0])){
+        $s = $r["SCORE"][0];
+        $conteudoTXT .= "CSB8: {$s["CSB8"]} ({$s["CSB8_FAIXA"]})\nCSBA: {$s["CSBA"]} ({$s["CSBA_FAIXA"]})\n";
+    } else {
+        $conteudoTXT .= "Score não disponível\n";
+    }
+
+    $conteudoTXT .= "\n==============================
+💎 PODER AQUISITIVO
+==============================\n";
+
+    if(isset($r["PODER_AQUISITIVO"][0])){
+        $pa = $r["PODER_AQUISITIVO"][0];
+        $conteudoTXT .= "{$pa["PODER_AQUISITIVO"]} - {$pa["FX_PODER_AQUISITIVO"]}\n";
+    } else {
+        $conteudoTXT .= "Não informado\n";
     }
 
     $conteudoTXT .= "\n==============================
@@ -797,15 +871,10 @@ PAI: {$dados["NOME_PAI"]}
 💻 Sistema exclusivo
 ==============================";
 
-    // Criar TXT temporário
     $nomeArquivo = "consulta_cpf_".time().".txt";
     file_put_contents($nomeArquivo, $conteudoTXT);
 
-    // Apagar mensagem de carregamento
     file_get_contents($apiURL."deleteMessage?chat_id=$chat_id&message_id=$msg_id");
-
-    // Mensagem de sucesso + botões
-    $textoSucesso = "✅ *Consulta realizada com sucesso!*\n\n📄 Clique no arquivo TXT enviado acima para visualizar os dados completos.\n\n⚙️ Dono: @silenciante";
 
     $kb = [
         "inline_keyboard" => [
@@ -816,12 +885,11 @@ PAI: {$dados["NOME_PAI"]}
         ]
     ];
 
-    // Enviar TXT
     $url = $apiURL."sendDocument";
     $post_fields = [
         'chat_id' => $chat_id,
         'document' => new CURLFile(realpath($nomeArquivo)),
-        'caption' => $textoSucesso,
+        'caption' => "✅ Consulta completa gerada com sucesso!",
         'parse_mode' => 'Markdown',
         'reply_markup' => json_encode($kb)
     ];
@@ -835,7 +903,6 @@ PAI: {$dados["NOME_PAI"]}
     curl_close($ch);
 
     unlink($nomeArquivo);
-
     exit;
 }
 
