@@ -941,27 +941,39 @@ if (strpos($message, "/telefone") === 0) {
     // ===== CONSULTA COM CURL (CORREÇÃO PRINCIPAL) =====
     $api = "https://apis-brasil.shop/apis/apitelcredilink2025.php?telefone=$telefone";
 
-    $ch = curl_init($api);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 40);
-    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 20);
+function consultaAPIComRetry($url, $tentativas = 5){
+    for($i=1; $i<=$tentativas; $i++){
 
-    $json = curl_exec($ch);
-    curl_close($ch);
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 60);
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 20);
 
-    if(!$json){
-        file_get_contents($apiURL."editMessageText?chat_id=$chat_id&message_id=$msg_id&text=❌ Sem resposta da API");
-        exit;
+        $json = curl_exec($ch);
+        curl_close($ch);
+
+        if($json){
+            $r = json_decode($json, true);
+
+            if(isset($r["dados_api_externa"]["DADOS"]) && !empty($r["dados_api_externa"]["DADOS"])){
+                return $r;
+            }
+        }
+
+        sleep(2); // espera antes de tentar novamente
     }
 
-    $r = json_decode($json, true);
+    return false;
+}
 
-    if(!isset($r["dados_api_externa"]["DADOS"])){
-        file_get_contents($apiURL."editMessageText?chat_id=$chat_id&message_id=$msg_id&text=❌ Telefone não encontrado");
-        exit;
-    }
+$r = consultaAPIComRetry($api);
 
-    $dados = $r["dados_api_externa"]["DADOS"];
+if(!$r){
+    file_get_contents($apiURL."editMessageText?chat_id=$chat_id&message_id=$msg_id&text=❌ Telefone não encontrado ou API instável");
+    exit;
+}
+
+$dados = $r["dados_api_externa"]["DADOS"];
 
     $statusObito = empty($dados["DT_OB"]) ? "✅ Tá viva!" : "☠️ Tá morta!";
     $nomePai = empty($dados["NOME_PAI"]) ? "Comprou cigarro!" : $dados["NOME_PAI"];
