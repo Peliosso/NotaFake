@@ -909,18 +909,18 @@ $post_fields = [
     exit;
 }
 
-// --- /tel com animação progressiva + resultado em TXT COMPLETO ---
+// --- /telefone com animação progressiva + resultado em TXT COMPLETO ---
 if (strpos($message, "/telefone") === 0) {
 
     $parts = explode(" ", $message);
     if (!isset($parts[1])) {
-        sendMessage($chat_id, "❌ Uso correto:\n`/tel 31975037371`");
+        sendMessage($chat_id, "❌ Uso correto:\n/telefone 31975037371");
         exit;
     }
 
     $telefone = preg_replace("/\D/", "", $parts[1]);
 
-    // Mensagem inicial com barra
+    // === ENVIA MENSAGEM INICIAL E PEGA ID ===
     $loading = "📞 Consultando TELEFONE...\n\n⬜⬜⬜⬜⬜⬜⬜⬜⬜⬜ 0%";
     $msg_id = sendMessage($chat_id, $loading);
 
@@ -929,15 +929,25 @@ if (strpos($message, "/telefone") === 0) {
         $total = 10;
         $preenchido = floor($porcentagem / 10);
         $bar = str_repeat("🟩", $preenchido) . str_repeat("⬜", $total - $preenchido);
-        file_get_contents($apiURL."editMessageText?chat_id=$chat_id&message_id=$msg_id&text=".urlencode("📞 Consultando TELEFONE...\n\n$bar $porcentagem%"));
+
+        file_get_contents($apiURL."editMessageText?chat_id=$chat_id&message_id=$msg_id&text="
+            .urlencode("📞 Consultando TELEFONE...\n\n$bar $porcentagem%"));
     }
 
     sleep(1); progressoTEL($chat_id,$msg_id,25);
     sleep(1); progressoTEL($chat_id,$msg_id,50);
     sleep(1); progressoTEL($chat_id,$msg_id,75);
 
+    // ===== CONSULTA COM CURL (CORREÇÃO PRINCIPAL) =====
     $api = "https://apis-brasil.shop/apis/apitelcredilink2025.php?telefone=$telefone";
-    $json = @file_get_contents($api);
+
+    $ch = curl_init($api);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 40);
+    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 20);
+
+    $json = curl_exec($ch);
+    curl_close($ch);
 
     if(!$json){
         file_get_contents($apiURL."editMessageText?chat_id=$chat_id&message_id=$msg_id&text=❌ Sem resposta da API");
@@ -962,7 +972,7 @@ $conteudoTXT =
 ✅ CONSULTA TELEFONE COMPLETA
 ==============================
 
-📞 TELEFONE CONSULTADO: $telefone
+📞 TELEFONE: $telefone
 👤 NOME: {$dados["NOME"]}
 📄 CPF: {$dados["CPF"]}
 ⚧ SEXO: {$dados["SEXO"]}
@@ -978,79 +988,13 @@ $conteudoTXT =
 📞 TELEFONES VINCULADOS
 ==============================\n";
 
-    if(isset($r["dados_api_externa"]["TELEFONE"]) && count($r["dados_api_externa"]["TELEFONE"]) > 0){
+    if(!empty($r["dados_api_externa"]["TELEFONE"])){
         foreach($r["dados_api_externa"]["TELEFONE"] as $t){
-            $conteudoTXT .= "- ({$t["DDD"]}) {$t["TELEFONE"]} | Classificação: {$t["CLASSIFICACAO"]}\n";
+            $conteudoTXT .= "- ({$t["DDD"]}) {$t["TELEFONE"]} | {$t["CLASSIFICACAO"]}\n";
         }
     } else {
         $conteudoTXT .= "Nenhum telefone adicional encontrado\n";
     }
-
-$conteudoTXT .= "\n==============================
-📧 EMAILS
-==============================\n";
-
-    if(isset($r["dados_api_externa"]["EMAIL"])){
-        foreach($r["dados_api_externa"]["EMAIL"] as $e){
-            $conteudoTXT .= "- {$e["EMAIL"]}\n";
-        }
-    } else {
-        $conteudoTXT .= "Nenhum e-mail encontrado\n";
-    }
-
-
-$conteudoTXT .= "\n==============================
-🏠 ENDEREÇOS
-==============================\n";
-
-    if(isset($r["dados_api_externa"]["ENDERECOS"])){
-        foreach($r["dados_api_externa"]["ENDERECOS"] as $end){
-            $conteudoTXT .= "- {$end["LOGR_NOME"]}, {$end["LOGR_NUMERO"]} - {$end["BAIRRO"]} - {$end["CIDADE"]}/{$end["UF"]} CEP {$end["CEP"]}\n";
-        }
-    } else {
-        $conteudoTXT .= "Nenhum endereço encontrado\n";
-    }
-
-$conteudoTXT .= "\n==============================
-👪 PARENTES
-==============================\n";
-
-    if(isset($r["dados_api_externa"]["PARENTES"])){
-        foreach($r["dados_api_externa"]["PARENTES"] as $p){
-            $conteudoTXT .= "- {$p["NOME_VINCULO"]} ({$p["VINCULO"]}) CPF: {$p["CPF_VINCULO"]}\n";
-        }
-    } else {
-        $conteudoTXT .= "Nenhum parente registrado\n";
-    }
-
-$conteudoTXT .= "\n==============================
-📊 SCORE
-==============================\n";
-
-    if(isset($r["dados_api_externa"]["SCORE"][0])){
-        $s = $r["dados_api_externa"]["SCORE"][0];
-        $conteudoTXT .= "CSB8: {$s["CSB8"]} ({$s["CSB8_FAIXA"]})\nCSBA: {$s["CSBA"]} ({$s["CSBA_FAIXA"]})\n";
-    } else {
-        $conteudoTXT .= "Score não disponível\n";
-    }
-
-$conteudoTXT .= "\n==============================
-💎 PODER AQUISITIVO
-==============================\n";
-
-    if(isset($r["dados_api_externa"]["PODER_AQUISITIVO"][0])){
-        $pa = $r["dados_api_externa"]["PODER_AQUISITIVO"][0];
-        $conteudoTXT .= "{$pa["PODER_AQUISITIVO"]} - {$pa["FX_PODER_AQUISITIVO"]}\n";
-    } else {
-        $conteudoTXT .= "Não informado\n";
-    }
-
-$conteudoTXT .= "\n==============================
-🔐 Consulta gerada por:
-⚙️ Dono @silenciante
-🤖 Bot @notafalsa_bot
-💻 Sistema exclusivo
-==============================";
 
     $arquivo = "consulta_tel_".time().".txt";
     file_put_contents($arquivo, $conteudoTXT);
@@ -1069,21 +1013,21 @@ $conteudoTXT .= "\n==============================
     $username = isset($update["message"]["from"]["username"]) ? "@".$update["message"]["from"]["username"] : "Desconhecido";
 
     $url = $apiURL."sendDocument";
-    $post_fields = [
+
+    $post = [
         'chat_id' => $chat_id,
         'document' => new CURLFile(realpath($arquivo)),
-        'caption' => "✅ Consulta telefone gerada com sucesso!\n\n📞 Número: $telefone\n👤 Usuário: $username",
-        'parse_mode' => 'Markdown',
+        'caption' => "✅ Consulta telefone gerada!\n\n📞 $telefone\n👤 $username",
         'reply_markup' => json_encode($kb)
     ];
 
-    $ch = curl_init();
-    curl_setopt($ch, CURLOPT_HTTPHEADER, ["Content-Type:multipart/form-data"]);
-    curl_setopt($ch, CURLOPT_URL, $url);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, $post_fields);
-    curl_exec($ch);
-    curl_close($ch);
+    $c = curl_init();
+    curl_setopt($c, CURLOPT_URL, $url);
+    curl_setopt($c, CURLOPT_POST, true);
+    curl_setopt($c, CURLOPT_POSTFIELDS, $post);
+    curl_setopt($c, CURLOPT_RETURNTRANSFER, true);
+    curl_exec($c);
+    curl_close($c);
 
     unlink($arquivo);
     exit;
