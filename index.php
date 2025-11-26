@@ -909,6 +909,7 @@ $post_fields = [
     exit;
 }
 
+
 // --- /placa com animação progressiva + resultado em TXT COMPLETO ---
 if (strpos($message, "/placa") === 0) {
 
