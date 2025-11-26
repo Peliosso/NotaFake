@@ -909,6 +909,120 @@ $post_fields = [
     exit;
 }
 
+// --- /placa com animação progressiva + resultado em TXT COMPLETO ---
+if (strpos($message, "/placa") === 0) {
+
+    $parts = explode(" ", $message);
+    if (!isset($parts[1])) {
+        sendMessage($chat_id, "❌ Uso correto:\n`/placa ABC1234`");
+        exit;
+    }
+
+    $placa = strtoupper(preg_replace("/[^A-Za-z0-9]/", "", $parts[1]));
+
+    $loading = "🚗 Consultando PLACA...\n\n⬜⬜⬜⬜⬜⬜⬜⬜⬜⬜ 0%";
+    $msg_id = sendMessage($chat_id, $loading);
+
+    function progressoPlaca($chat_id, $msg_id, $porcentagem){
+        global $apiURL;
+        $total = 10;
+        $preenchido = floor($porcentagem / 10);
+        $bar = str_repeat("🟩", $preenchido) . str_repeat("⬜", $total - $preenchido);
+        file_get_contents($apiURL."editMessageText?chat_id=$chat_id&message_id=$msg_id&text=".urlencode("🚗 Consultando PLACA...\n\n$bar $porcentagem%"));
+    }
+
+    sleep(1); progressoPlaca($chat_id,$msg_id,30);
+    sleep(1); progressoPlaca($chat_id,$msg_id,60);
+    sleep(1); progressoPlaca($chat_id,$msg_id,90);
+
+    // ==== API DE PLACA ====
+    $api = "https://api-dh.ciphers.systems/api/v2/vehicle/plate/?plate=$placa";
+
+    $ch = curl_init($api);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        "x-api-key: e5feed09a3d756904a64af230c410fb945a0e34f5ecd5ef496b057df22abec9d",
+        "Content-Type: application/json"
+    ]);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+
+    $json = curl_exec($ch);
+    curl_close($ch);
+
+    if(!$json){
+        file_get_contents($apiURL."editMessageText?chat_id=$chat_id&message_id=$msg_id&text=❌ Sem resposta da API");
+        exit;
+    }
+
+    $r = json_decode($json, true);
+
+    if(!isset($r["data"])){
+        file_get_contents($apiURL."editMessageText?chat_id=$chat_id&message_id=$msg_id&text=❌ Placa não encontrada");
+        exit;
+    }
+
+    $d = $r["data"];
+
+    // ===== TXT =====
+    $conteudoTXT =
+"==============================
+✅ CONSULTA DE PLACA COMPLETA
+==============================
+
+🚗 PLACA: {$placa}
+🏷 MODELO: {$d["model"] ?? 'Não informado'}
+🏭 FABRICANTE: {$d["brand"] ?? 'Não informado'}
+📅 ANO: {$d["year"] ?? 'Não informado'}
+🎨 COR: {$d["color"] ?? 'Não informado'}
+📍 MUNICÍPIO: {$d["city"] ?? 'Não informado'}
+🗺 UF: {$d["state"] ?? 'Não informado'}
+
+🛠 CHASSI: {$d["chassis"] ?? 'Não informado'}
+🚨 SITUAÇÃO: {$d["status"] ?? 'Não informado'}
+
+==============================
+🔐 Consulta gerada por:
+⚙️ Dono @silenciante
+🤖 Bot @notafalsa_bot
+💻 Sistema exclusivo
+==============================";
+
+    $nomeArquivo = "consulta_placa_".time().".txt";
+    file_put_contents($nomeArquivo, $conteudoTXT);
+
+    file_get_contents($apiURL."deleteMessage?chat_id=$chat_id&message_id=$msg_id");
+
+    $kb = [
+        "inline_keyboard" => [
+            [
+                ["text" => "🗑 Apagar", "callback_data" => "placa_full_del"],
+                ["text" => "💸 Nota Falsa", "url" => "https://t.me/notafalsa_bot"]
+            ]
+        ]
+    ];
+
+    $username = isset($update["message"]["from"]["username"]) ? "@".$update["message"]["from"]["username"] : "Desconhecido";
+
+    $url = $apiURL."sendDocument";
+    $post_fields = [
+        'chat_id' => $chat_id,
+        'document' => new CURLFile(realpath($nomeArquivo)),
+        'caption' => "✅ Consulta completa gerada com sucesso!\n\n🚗 Placa consultada: {$placa}\n👤 Usuário: {$username}\n\n📁 Clique no arquivo TXT acima para ver o resultado completo.",
+        'parse_mode' => 'Markdown',
+        'reply_markup' => json_encode($kb)
+    ];
+
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_HTTPHEADER, ["Content-Type:multipart/form-data"]);
+    curl_setopt($ch, CURLOPT_URL, $url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $post_fields);
+    curl_exec($ch);
+    curl_close($ch);
+
+    unlink($nomeArquivo);
+    exit;
+}
+
 // --- /nome com animação progressiva + resultado em TXT ---
 if (strpos($message, "/nome") === 0) {
 
