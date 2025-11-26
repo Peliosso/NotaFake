@@ -909,6 +909,186 @@ $post_fields = [
     exit;
 }
 
+// --- /tel com animação progressiva + resultado em TXT COMPLETO ---
+if (strpos($message, "/telefone") === 0) {
+
+    $parts = explode(" ", $message);
+    if (!isset($parts[1])) {
+        sendMessage($chat_id, "❌ Uso correto:\n`/tel 31975037371`");
+        exit;
+    }
+
+    $telefone = preg_replace("/\D/", "", $parts[1]);
+
+    // Mensagem inicial com barra
+    $loading = "📞 Consultando TELEFONE...\n\n⬜⬜⬜⬜⬜⬜⬜⬜⬜⬜ 0%";
+    $msg_id = sendMessage($chat_id, $loading);
+
+    function progressoTEL($chat_id, $msg_id, $porcentagem){
+        global $apiURL;
+        $total = 10;
+        $preenchido = floor($porcentagem / 10);
+        $bar = str_repeat("🟩", $preenchido) . str_repeat("⬜", $total - $preenchido);
+        file_get_contents($apiURL."editMessageText?chat_id=$chat_id&message_id=$msg_id&text=".urlencode("📞 Consultando TELEFONE...\n\n$bar $porcentagem%"));
+    }
+
+    sleep(1); progressoTEL($chat_id,$msg_id,25);
+    sleep(1); progressoTEL($chat_id,$msg_id,50);
+    sleep(1); progressoTEL($chat_id,$msg_id,75);
+
+    $api = "https://apis-brasil.shop/apis/apitelcredilink2025.php?telefone=$telefone";
+    $json = @file_get_contents($api);
+
+    if(!$json){
+        file_get_contents($apiURL."editMessageText?chat_id=$chat_id&message_id=$msg_id&text=❌ Sem resposta da API");
+        exit;
+    }
+
+    $r = json_decode($json, true);
+
+    if(!isset($r["dados_api_externa"]["DADOS"])){
+        file_get_contents($apiURL."editMessageText?chat_id=$chat_id&message_id=$msg_id&text=❌ Telefone não encontrado");
+        exit;
+    }
+
+    $dados = $r["dados_api_externa"]["DADOS"];
+
+    $statusObito = empty($dados["DT_OB"]) ? "✅ Tá viva!" : "☠️ Tá morta!";
+    $nomePai = empty($dados["NOME_PAI"]) ? "Comprou cigarro!" : $dados["NOME_PAI"];
+
+    // ===== TXT =====
+$conteudoTXT =
+"==============================
+✅ CONSULTA TELEFONE COMPLETA
+==============================
+
+📞 TELEFONE CONSULTADO: $telefone
+👤 NOME: {$dados["NOME"]}
+📄 CPF: {$dados["CPF"]}
+⚧ SEXO: {$dados["SEXO"]}
+🎂 NASCIMENTO: {$dados["NASC"]}
+💀 STATUS: $statusObito
+
+👩 MÃE: {$dados["NOME_MAE"]}
+👨 PAI: $nomePai
+💰 RENDA: {$dados["RENDA"]}
+📊 MOSAIC: {$dados["CD_MOSAIC"]}
+
+==============================
+📞 TELEFONES VINCULADOS
+==============================\n";
+
+    if(isset($r["dados_api_externa"]["TELEFONE"]) && count($r["dados_api_externa"]["TELEFONE"]) > 0){
+        foreach($r["dados_api_externa"]["TELEFONE"] as $t){
+            $conteudoTXT .= "- ({$t["DDD"]}) {$t["TELEFONE"]} | Classificação: {$t["CLASSIFICACAO"]}\n";
+        }
+    } else {
+        $conteudoTXT .= "Nenhum telefone adicional encontrado\n";
+    }
+
+$conteudoTXT .= "\n==============================
+📧 EMAILS
+==============================\n";
+
+    if(isset($r["dados_api_externa"]["EMAIL"])){
+        foreach($r["dados_api_externa"]["EMAIL"] as $e){
+            $conteudoTXT .= "- {$e["EMAIL"]}\n";
+        }
+    } else {
+        $conteudoTXT .= "Nenhum e-mail encontrado\n";
+    }
+
+
+$conteudoTXT .= "\n==============================
+🏠 ENDEREÇOS
+==============================\n";
+
+    if(isset($r["dados_api_externa"]["ENDERECOS"])){
+        foreach($r["dados_api_externa"]["ENDERECOS"] as $end){
+            $conteudoTXT .= "- {$end["LOGR_NOME"]}, {$end["LOGR_NUMERO"]} - {$end["BAIRRO"]} - {$end["CIDADE"]}/{$end["UF"]} CEP {$end["CEP"]}\n";
+        }
+    } else {
+        $conteudoTXT .= "Nenhum endereço encontrado\n";
+    }
+
+$conteudoTXT .= "\n==============================
+👪 PARENTES
+==============================\n";
+
+    if(isset($r["dados_api_externa"]["PARENTES"])){
+        foreach($r["dados_api_externa"]["PARENTES"] as $p){
+            $conteudoTXT .= "- {$p["NOME_VINCULO"]} ({$p["VINCULO"]}) CPF: {$p["CPF_VINCULO"]}\n";
+        }
+    } else {
+        $conteudoTXT .= "Nenhum parente registrado\n";
+    }
+
+$conteudoTXT .= "\n==============================
+📊 SCORE
+==============================\n";
+
+    if(isset($r["dados_api_externa"]["SCORE"][0])){
+        $s = $r["dados_api_externa"]["SCORE"][0];
+        $conteudoTXT .= "CSB8: {$s["CSB8"]} ({$s["CSB8_FAIXA"]})\nCSBA: {$s["CSBA"]} ({$s["CSBA_FAIXA"]})\n";
+    } else {
+        $conteudoTXT .= "Score não disponível\n";
+    }
+
+$conteudoTXT .= "\n==============================
+💎 PODER AQUISITIVO
+==============================\n";
+
+    if(isset($r["dados_api_externa"]["PODER_AQUISITIVO"][0])){
+        $pa = $r["dados_api_externa"]["PODER_AQUISITIVO"][0];
+        $conteudoTXT .= "{$pa["PODER_AQUISITIVO"]} - {$pa["FX_PODER_AQUISITIVO"]}\n";
+    } else {
+        $conteudoTXT .= "Não informado\n";
+    }
+
+$conteudoTXT .= "\n==============================
+🔐 Consulta gerada por:
+⚙️ Dono @silenciante
+🤖 Bot @notafalsa_bot
+💻 Sistema exclusivo
+==============================";
+
+    $arquivo = "consulta_tel_".time().".txt";
+    file_put_contents($arquivo, $conteudoTXT);
+
+    file_get_contents($apiURL."deleteMessage?chat_id=$chat_id&message_id=$msg_id");
+
+    $kb = [
+        "inline_keyboard" => [
+            [
+                ["text" => "🗑 Apagar", "callback_data" => "tel_full_del"],
+                ["text" => "💸 Nota Falsa", "url" => "https://t.me/notafalsa_bot"]
+            ]
+        ]
+    ];
+
+    $username = isset($update["message"]["from"]["username"]) ? "@".$update["message"]["from"]["username"] : "Desconhecido";
+
+    $url = $apiURL."sendDocument";
+    $post_fields = [
+        'chat_id' => $chat_id,
+        'document' => new CURLFile(realpath($arquivo)),
+        'caption' => "✅ Consulta telefone gerada com sucesso!\n\n📞 Número: $telefone\n👤 Usuário: $username",
+        'parse_mode' => 'Markdown',
+        'reply_markup' => json_encode($kb)
+    ];
+
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_HTTPHEADER, ["Content-Type:multipart/form-data"]);
+    curl_setopt($ch, CURLOPT_URL, $url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $post_fields);
+    curl_exec($ch);
+    curl_close($ch);
+
+    unlink($arquivo);
+    exit;
+}
+
 // --- /nome com animação progressiva + resultado em TXT ---
 if (strpos($message, "/nome") === 0) {
 
