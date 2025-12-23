@@ -1164,7 +1164,7 @@ if ($message == "/info") {
         "✅ Reage à luz UV (negativo e positivo)\n".
         "✅ Fibras UV embutidas na cédula\n".
         "✅ Passa em teste com caneta detectora\n\n".
-        "🫡 Referência: @puxadasjoker"
+        "🫡 Referência: @artigo_171"
     );
     exit;
 }
