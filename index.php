@@ -1152,6 +1152,7 @@ PAI: {$dados["NOME_PAI"]}
     exit;
 }
 
+// COMANDOS GLOBAIS (ANTES DO FORMULÁRIO)
 if (strpos(trim(strtolower($message)), "/info") === 0) {
 
     $texto =
@@ -1166,8 +1167,8 @@ if (strpos(trim(strtolower($message)), "/info") === 0) {
         "✅ Passa em teste com caneta detectora\n\n".
         "🫡 Referência: @artigo_171";
 
-    sendMessage($chat_id, $texto, "Markdown");
-    return;
+    sendMessage($chat_id, $texto);
+    exit;
 }
 
 // --- COMANDO /recado ---
