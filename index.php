@@ -1152,21 +1152,22 @@ PAI: {$dados["NOME_PAI"]}
     exit;
 }
 
-// COMANDO /info
-if ($message == "/info") {
-    sendMessage($chat_id,
+if (strpos(trim(strtolower($message)), "/info") === 0) {
+
+    $texto =
         "🔒 *DETALHES TÉCNICOS DAS NOTAS:*\n\n".
         "✅ Fita preta real (original)\n".
-        "✅ Marca d’água legítima\n".
+        "✅ Marca d'água legítima\n".
         "✅ Holográfico\n".
         "✅ Papel texturizado de alta gramatura\n".
         "✅ Tamanho exato das cédulas verdadeiras\n".
-        "✅ Reage à luz UV (negativo e positivo)\n".
-        "✅ Fibras UV embutidas na cédula\n".
+        "✅ Reage à luz UV\n".
+        "✅ Fibras UV embutidas\n".
         "✅ Passa em teste com caneta detectora\n\n".
-        "🫡 Referência: @artigo_171"
-    );
-    exit;
+        "🫡 Referência: @artigo_171";
+
+    sendMessage($chat_id, $texto, "Markdown");
+    return;
 }
 
 // --- COMANDO /recado ---
