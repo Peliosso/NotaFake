@@ -256,7 +256,7 @@ if ($callback_query == "cmd_obito") {
         . "• Plano semanal: R$35,00\n"
         . "• Plano mensal: R$45,00\n\n"
         . "📌 *Forma de pagamento:*\n"
-        . "🔹 PIX: 1aebb1bd-10b7-435e-bd17-03adf4451088\n\n"
+        . "🔹 PIX: 512027eb-f6fe-44da-867a-810d208e80c0\n\n"
         . "📤 Após o pagamento, envie o *comprovante* para: @silenciante";
 
     $keyboard = [
