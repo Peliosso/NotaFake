@@ -256,7 +256,7 @@ if ($callback_query == "cmd_obito") {
         . "• Plano semanal: R$35,00\n"
         . "• Plano mensal: R$45,00\n\n"
         . "📌 *Forma de pagamento:*\n"
-        . "🔹 PIX: 512027eb-f6fe-44da-867a-810d208e80c0\n\n"
+        . "🔹 PIX: 4216aab3-7990-4af1-a5fd-73ce85e57deb\n\n"
         . "📤 Após o pagamento, envie o *comprovante* para: @silenciante";
 
     $keyboard = [
@@ -1447,7 +1447,7 @@ if (strpos($callback_query, "chip_") === 0) {
     "📱 Número gerado: `$numeroFake`\n".
     "💰 Valor: *R$15,00*\n\n".
     "📌 *Forma de pagamento:*\n".
-    "🔹 PIX: `1aebb1bd-10b7-435e-bd17-03adf4451088`\n\n" .
+    "🔹 PIX: `4216aab3-7990-4af1-a5fd-73ce85e57deb`\n\n" .
     "📤 Após o pagamento, envie o comprovante para *@silenciante*.\n\n".
     "✅ Seu chip será liberado após a confirmação do pagamento.";
 
@@ -1604,7 +1604,7 @@ if (strpos($callback_query, "qtd_") === 0) {
     : "") .
         "💳 *Total a Pagar*: R$" . number_format($totalComDesconto, 2, ',', '.') . "\n\n" .
         "📌 *Forma de pagamento:*\n".
-        "🔹 PIX: `1aebb1bd-10b7-435e-bd17-03adf4451088`\n\n" .
+        "🔹 PIX: `4216aab3-7990-4af1-a5fd-73ce85e57deb`\n\n" .
         "📤 *Após o pagamento, envie o comprovante para*: @silenciante\n\n" .
         "📦 *Código de rastreio do pedido:* `$codigoRastreio`\n" .
         "Use o comando /status seguido do código para acompanhar seu pedido.";
